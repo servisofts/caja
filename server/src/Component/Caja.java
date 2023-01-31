@@ -17,6 +17,9 @@ public class Caja {
             case "getAll":
                 getAll(obj, session);
                 break;
+            case "getHistorico":
+                getHistorico(obj, session);
+                break;
             case "getLast":
                 getLast(obj, session);
                 break;
@@ -29,12 +32,42 @@ public class Caja {
             case "editar":
                 editar(obj, session);
                 break;
+            case "reporteCuentas":
+                reporteCuentas(obj, session);
+                break;
+                
         }
     }
 
     public static void getAll(JSONObject obj, SSSessionAbstract session) {
         try {
             String consulta = "select get_abiertas('" + obj.getJSONObject("servicio").getString("key") + "') as json";
+            JSONObject data = SPGConect.ejecutarConsultaObject(consulta);
+            obj.put("data", data);
+            obj.put("estado", "exito");
+        } catch (Exception e) {
+            obj.put("estado", "error");
+            obj.put("error", e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    public static void getHistorico(JSONObject obj, SSSessionAbstract session) {
+        try {
+            String consulta = "select get_historico_caja('" + obj.getJSONObject("servicio").getString("key") + "', '"+obj.getString("fecha_inicio")+"','"+obj.getString("fecha_fin")+"') as json";
+            JSONObject data = SPGConect.ejecutarConsultaObject(consulta);
+            obj.put("data", data);
+            obj.put("estado", "exito");
+        } catch (Exception e) {
+            obj.put("estado", "error");
+            obj.put("error", e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    public static void reporteCuentas(JSONObject obj, SSSessionAbstract session) {
+        try {
+            String consulta = "select reporte_cuentas('" + obj.getJSONObject("servicio").getString("key") + "', '"+obj.getString("fecha_inicio")+"', '"+obj.getString("fecha_fin")+"') as json";
             JSONObject data = SPGConect.ejecutarConsultaObject(consulta);
             obj.put("data", data);
             obj.put("estado", "exito");

@@ -29,8 +29,9 @@ public class CajaDetalle {
 
     public static void getAll(JSONObject obj, SSSessionAbstract session) {
         try {
-            String consulta = "select get_all('" + COMPONENT + "', 'key_caja', '" + obj.getString("key_caja") + "') as json";
+            String consulta = "select get_all_caja_detalle('" + obj.getString("key_caja") + "') as json";
             JSONObject data = SPGConect.ejecutarConsultaObject(consulta);
+            
             obj.put("data", data);
             obj.put("estado", "exito");
         } catch (Exception e) {
@@ -119,6 +120,12 @@ public class CajaDetalle {
             data.put("key_usuario", obj.getString("key_usuario"));
             SPGConect.insertArray(COMPONENT, new JSONArray().put(data));
         
+            
+            if(data.has("cuentas") && !data.isNull("cuentas")){
+                CajaDetalleCuenta.registrar(data.getString("key"), data.getJSONArray("cuentas"));                
+            }
+
+
             obj.put("data", data);
             obj.put("estado", "exito");
         } catch (Exception e) {
@@ -128,10 +135,16 @@ public class CajaDetalle {
         }
     }
 
+    
     public static void editar(JSONObject obj, SSSessionAbstract session) {
         try {
             JSONObject data = obj.getJSONObject("data");
             SPGConect.editObject(COMPONENT, data);
+
+            if(data.has("cuentas") && !data.isNull("cuentas")){
+                CajaDetalleCuenta.registrar(data.getString("key"), data.getJSONArray("cuentas"));                
+            }
+
             obj.put("data", data);
             obj.put("estado", "exito");
         
