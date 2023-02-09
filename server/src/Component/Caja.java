@@ -117,7 +117,7 @@ public class Caja {
     
     public static void getByKey(JSONObject obj, SSSessionAbstract session) {
         try {
-            String consulta = "select get_by('" + COMPONENT + "') as json";
+            String consulta = "select get_by_key('" + COMPONENT + "','"+obj.getString("key")+"') as json";
             JSONObject data = SPGConect.ejecutarConsultaObject(consulta);
             obj.put("data", data);
             obj.put("estado", "exito");
@@ -130,7 +130,7 @@ public class Caja {
 
     public static JSONObject getByKey(String key) {
         try {
-            String consulta = "select get_by('" + COMPONENT + "', 'key', '" + key + "') as json";
+            String consulta = "select get_by_key('" + COMPONENT + "', '" + key + "') as json";
             return SPGConect.ejecutarConsultaObject(consulta);
         } catch (Exception e) {
             e.printStackTrace();
@@ -189,12 +189,45 @@ public class Caja {
 
             if(obj.getString("action").equals("cerrar")){
                 data.put("fecha_cierre", SUtil.now());
-                JSONObject montoCaja = CajaDetalle.getMontoCaja(data.getString("key"));
+
                 double monto = 0;
-                if(!montoCaja.isEmpty()){
-                    monto = montoCaja.getDouble("monto");
+
+                JSONObject caja_detalle = new JSONObject();
+                caja_detalle.put("key_caja", data.getString("key"));
+                caja_detalle.put("descripcion", "Cierre de caja");
+                caja_detalle.put("tipo", "cierre");
+                
+
+                JSONObject movimientos = SPGConect.ejecutarConsultaObject("select get_movimientos_caja_tipo_pago('" + data.getString("key") + "') as json");
+                
+                JSONObject punto_venta_tipo_pago;
+                String key_tipo_pago, key_cuenta_contable;
+                double monto_;
+                JSONArray cuentas = new JSONArray();
+                JSONObject cuenta;
+                for (int i = 0; i < JSONObject.getNames(obj.getJSONObject("punto_venta_tipo_pago")).length; i++) {
+                    punto_venta_tipo_pago = obj.getJSONObject("punto_venta_tipo_pago").getJSONObject(JSONObject.getNames(obj.getJSONObject("punto_venta_tipo_pago"))[i]);
+
+                    key_cuenta_contable = punto_venta_tipo_pago.getString("key_cuenta_contable");
+                    key_tipo_pago = punto_venta_tipo_pago.getString("key_tipo_pago");
+                    if(movimientos.has(key_tipo_pago) && !movimientos.isNull(key_tipo_pago)){
+                        monto_ = movimientos.getJSONObject(key_tipo_pago).getDouble("monto");
+                        monto+=monto_;
+                        cuenta = new JSONObject();
+                        cuenta.put("monto", monto_);
+                        cuenta.put("key_cuenta_contable", key_cuenta_contable);
+                        cuentas.put(cuenta);
+                    }
+                    
                 }
-                data.put("monto_cierre", monto);
+                
+                caja_detalle.put("monto",monto);
+                caja_detalle.put("cuentas",cuentas);
+
+                JSONObject send = new JSONObject();
+                send.put("data", caja_detalle);
+                send.put("key_usuario", obj.getString("key_usuario"));
+                CajaDetalle.registro(send, session);
 
                 Notificar.send("💻 Cerraste una caja", "Monto de cierre Bs. "+monto, data, obj.getJSONObject("servicio").getString("key"), obj.getString("key_usuario"));
             }

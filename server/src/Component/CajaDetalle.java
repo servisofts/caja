@@ -55,14 +55,17 @@ public class CajaDetalle {
         try {
 
             JSONObject last = Caja.getLast(key_punto_venta);
-
+            
             JSONObject data = new JSONObject();
             data.put("key", SUtil.uuid());
             data.put("key_caja", key_caja);
             data.put("fecha_on", SUtil.now());
             data.put("estado", 1);
             data.put("descripcion", "Movimiento de apertura");
-            data.put("monto", last.getDouble("monto_cierre"));
+            data.put("monto", 0);
+
+            //if(last != null && !last.isEmpty()) data.put("monto", last.getDouble("monto_cierre"));
+            data.put("key_tipo_pago", "efectivo");
             data.put("tipo", "apertura");
 
             SPGConect.insertArray(COMPONENT, new JSONArray().put(data));
@@ -78,7 +81,7 @@ public class CajaDetalle {
 
     public static void getByKey(JSONObject obj, SSSessionAbstract session) {
         try {
-            String consulta = "select get_by('" + COMPONENT + "') as json";
+            String consulta = "select get_by_key('" + COMPONENT + "', '"+obj.getString("key")+"') as json";
             JSONObject data = SPGConect.ejecutarConsultaObject(consulta);
             obj.put("data", data);
             obj.put("estado", "exito");
@@ -91,7 +94,7 @@ public class CajaDetalle {
 
     public static JSONObject getByKey(String key) {
         try {
-            String consulta = "select get_by('" + COMPONENT + "', 'key', '" + key + "') as json";
+            String consulta = "select get_by_key('" + COMPONENT + "', '" + key + "') as json";
             return SPGConect.ejecutarConsultaObject(consulta);
         } catch (Exception e) {
             e.printStackTrace();
