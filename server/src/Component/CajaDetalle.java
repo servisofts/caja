@@ -128,7 +128,6 @@ public class CajaDetalle {
                 CajaDetalleCuenta.registrar(data.getString("key"), data.getJSONArray("cuentas"));                
             }
 
-
             obj.put("data", data);
             obj.put("estado", "exito");
         } catch (Exception e) {
