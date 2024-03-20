@@ -5,6 +5,7 @@ import org.json.JSONObject;
 
 import com.google.gson.JsonObject;
 
+import Contabilidad.Contabilidad;
 import Servisofts.SPGConect;
 import Servisofts.SUtil;
 import Server.SSSAbstract.SSSessionAbstract;
@@ -41,7 +42,7 @@ public class Caja {
 
     public static void getAll(JSONObject obj, SSSessionAbstract session) {
         try {
-            String consulta = "select get_abiertas('" + obj.getJSONObject("servicio").getString("key") + "') as json";
+            String consulta = "select get_abiertas('" + obj.getString("key_empresa") + "') as json";
             JSONObject data = SPGConect.ejecutarConsultaObject(consulta);
             obj.put("data", data);
             obj.put("estado", "exito");
@@ -148,6 +149,7 @@ public class Caja {
         }
     }
 
+
     public static void registro(JSONObject obj, SSSessionAbstract session) {
         try {
 
@@ -183,54 +185,32 @@ public class Caja {
         }
     }
 
+    public static JSONObject getMontoCajaTipoPago(String key_caja) {
+        try {
+            
+            return SPGConect.ejecutarConsultaObject("select get_monto_caja_tipo_pago('"+key_caja+"') as json");
+
+        }catch(Exception e){
+            e.printStackTrace();
+            return null;
+        }
+    
+    }
+
     public static void editar(JSONObject obj, SSSessionAbstract session) {
         try {
             JSONObject data = obj.getJSONObject("data");
 
-            if(obj.getString("action").equals("cerrar")){
-                data.put("fecha_cierre", SUtil.now());
+            
 
-                double monto = 0;
-
-                JSONObject caja_detalle = new JSONObject();
-                caja_detalle.put("key_caja", data.getString("key"));
-                caja_detalle.put("descripcion", "Cierre de caja");
-                caja_detalle.put("tipo", "cierre");
-                
-
-                JSONObject movimientos = SPGConect.ejecutarConsultaObject("select get_movimientos_caja_tipo_pago('" + data.getString("key") + "') as json");
-                
-                JSONObject punto_venta_tipo_pago;
-                String key_tipo_pago, key_cuenta_contable;
-                double monto_;
-                JSONArray cuentas = new JSONArray();
-                JSONObject cuenta;
-                for (int i = 0; i < JSONObject.getNames(obj.getJSONObject("punto_venta_tipo_pago")).length; i++) {
-                    punto_venta_tipo_pago = obj.getJSONObject("punto_venta_tipo_pago").getJSONObject(JSONObject.getNames(obj.getJSONObject("punto_venta_tipo_pago"))[i]);
-
-                    key_cuenta_contable = punto_venta_tipo_pago.getString("key_cuenta_contable");
-                    key_tipo_pago = punto_venta_tipo_pago.getString("key_tipo_pago");
-                    if(movimientos.has(key_tipo_pago) && !movimientos.isNull(key_tipo_pago)){
-                        monto_ = movimientos.getJSONObject(key_tipo_pago).getDouble("monto");
-                        monto+=monto_;
-                        cuenta = new JSONObject();
-                        cuenta.put("monto", monto_);
-                        cuenta.put("key_cuenta_contable", key_cuenta_contable);
-                        cuentas.put(cuenta);
-                    }
-                    
-                }
-                
-                caja_detalle.put("monto",monto);
-                caja_detalle.put("cuentas",cuentas);
-
-                JSONObject send = new JSONObject();
-                send.put("data", caja_detalle);
-                send.put("key_usuario", obj.getString("key_usuario"));
-                CajaDetalle.registro(send, session);
-
-                Notificar.send("💻 Cerraste una caja", "Monto de cierre Bs. "+monto, data, obj.getJSONObject("servicio").getString("key"), obj.getString("key_usuario"));
+            if(obj.has("action") && obj.getString("action").equals("cerrar")){
+                Contabilidad.caja_cierre(obj);
             }
+
+            if(obj.getString("estado").equals("error")){
+                return;
+            }
+            Notificar.send("💻 Cerraste una caja", "Monto de cierre Bs. ", data, obj.getJSONObject("servicio").getString("key"), obj.getString("key_usuario"));
 
             SPGConect.editObject(COMPONENT, data);
             obj.put("data", data);

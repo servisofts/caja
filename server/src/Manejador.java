@@ -23,9 +23,6 @@ public class Manejador {
             case CajaDetalleMoneda.COMPONENT:
                 CajaDetalleMoneda.onMessage(obj, session);
                 break;
-            case CajaDetalleCuenta.COMPONENT:
-                CajaDetalleCuenta.onMessage(obj, session);
-                break;
         }
     }
 }
