@@ -1,8 +1,8 @@
 {
   "Servicios": {
     "notification": {
-      "host": "192.168.5.33:10033",
-      "status": "desconectado"
+      "host": "192.168.2.1:10033",
+      "status": "exito"
     },
     "contabilidad": {
       "host": "192.168.5.11:10011",
@@ -14,5 +14,5 @@
     "status": "exito"
   },
   "- SLog": "RealTime Log from server Servisofts",
-  "- Fecha": "2024-03-19T22:31:00.000544"
+  "- Fecha": "2024-04-25T01:30:16.000988"
 }
