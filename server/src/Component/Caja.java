@@ -18,6 +18,9 @@ public class Caja {
             case "getAll":
                 getAll(obj, session);
                 break;
+            case "getActiva":
+                getActiva(obj, session);
+                break;
             case "getHistorico":
                 getHistorico(obj, session);
                 break;
@@ -43,6 +46,19 @@ public class Caja {
     public static void getAll(JSONObject obj, SSSessionAbstract session) {
         try {
             String consulta = "select get_abiertas('" + obj.getString("key_empresa") + "') as json";
+            JSONObject data = SPGConect.ejecutarConsultaObject(consulta);
+            obj.put("data", data);
+            obj.put("estado", "exito");
+        } catch (Exception e) {
+            obj.put("estado", "error");
+            obj.put("error", e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    public static void getActiva(JSONObject obj, SSSessionAbstract session) {
+        try {
+            String consulta = "select get_abiertas('" + obj.getString("key_empresa") + "', '" + obj.getString("key_usuario") + "') as json";
             JSONObject data = SPGConect.ejecutarConsultaObject(consulta);
             obj.put("data", data);
             obj.put("estado", "exito");
@@ -207,7 +223,7 @@ public class Caja {
                 Contabilidad.caja_cierre(obj);
             }
 
-            if(obj.getString("estado").equals("error")){
+            if(obj.optString("estado").equals("error")){
                 return;
             }
             Notificar.send("💻 Cerraste una caja", "Monto de cierre Bs. ", data, obj.getJSONObject("servicio").getString("key"), obj.getString("key_usuario"));

@@ -1,18 +1,13 @@
 {
   "Servicios": {
-    "notification": {
-      "host": "192.168.2.1:10033",
-      "status": "exito"
-    },
-    "contabilidad": {
-      "host": "192.168.5.11:10011",
-      "status": "exito"
-    }
+    "notification": true,
+    "contabilidad": true,
+    "empresa": true
   },
   "PostgreSQL": {
     "host": "jdbc:postgresql://192.168.5.45:5432/servisofts.caja",
     "status": "exito"
   },
   "- SLog": "RealTime Log from server Servisofts",
-  "- Fecha": "2024-04-25T01:30:16.000988"
+  "- Fecha": "2025-09-03T19:56:45.954-04:00"
 }

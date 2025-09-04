@@ -4,9 +4,11 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import Contabilidad.Contabilidad;
+import Servisofts.SPG;
 import Servisofts.SPGConect;
 import Servisofts.SUtil;
 import SocketCliente.SocketCliente;
+import Util.ConectInstance;
 import Server.SSSAbstract.SSSessionAbstract;
 
 public class CajaDetalle {
@@ -57,22 +59,41 @@ public class CajaDetalle {
         try {
 
             JSONObject last = Caja.getLast(key_punto_venta);
-            
-            JSONObject data = new JSONObject();
-            data.put("key", SUtil.uuid());
-            data.put("key_caja", key_caja);
-            data.put("fecha_on", SUtil.now());
-            data.put("estado", 1);
-            data.put("descripcion", "Movimiento de apertura");
-            data.put("monto", 0);
 
-            //if(last != null && !last.isEmpty()) data.put("monto", last.getDouble("monto_cierre"));
-            data.put("key_tipo_pago", "efectivo");
-            data.put("tipo", "apertura");
+            if(last == null){
+                  return new JSONObject().put("monto", 0);
+            }
+            if(!last.has("key")){
+                return new JSONObject().put("monto", 0);
+            }
+            double monto=0;
+            JSONObject puntoVentaTipoPagoMontos = Caja.getMontoCajaTipoPago(last.getString("key"));
+            JSONArray detalle = new JSONArray();
+            for (String key : puntoVentaTipoPagoMontos.keySet()) {
+                JSONObject item = puntoVentaTipoPagoMontos.getJSONObject(key);
 
-            SPGConect.insertArray(COMPONENT, new JSONArray().put(data));
+                JSONObject tipoPago = Contabilidad.getTipoPago(item.getString("key_tipo_pago"));
 
-            return data;
+                if(item.getDouble("monto")>0 && tipoPago.optBoolean("pasa_por_caja",false)){
+                    JSONObject det = new JSONObject();
+                    monto+=item.getDouble("monto");
+                    det.put("key", SUtil.uuid());
+                    det.put("key_caja", key_caja);
+                    det.put("key_tipo_pago", item.getString("key_tipo_pago"));
+                    det.put("monto", item.getDouble("monto"));
+                    det.put("descripcion", "Apertura de caja "+item.getString("key_tipo_pago"));
+                    det.put("tipo", "apertura");
+                    det.put("fecha", SUtil.now());
+                    det.put("fecha_on", SUtil.now());
+                    det.put("estado", 1);
+
+                    detalle.put(det);
+                }
+            }
+
+            SPGConect.insertArray("caja_detalle", detalle);
+
+            return new JSONObject().put("monto", monto);
         } catch (Exception e) {
             e.printStackTrace();
             return null;
@@ -115,7 +136,11 @@ public class CajaDetalle {
     }
 
     public static void registro(JSONObject obj, SSSessionAbstract session) {
+        ConectInstance conectInstance = null;
         try {
+
+            conectInstance = new ConectInstance();
+            conectInstance.Transacction();
 
             JSONObject data = obj.getJSONObject("data");
 
@@ -129,20 +154,20 @@ public class CajaDetalle {
             data.put("key_usuario", obj.getString("key_usuario"));
             JSONObject newData = new JSONObject(data.toString());
             
-
+            conectInstance.insertArray(COMPONENT, new JSONArray().put(newData));
             switch (data.getString("tipo")) {
-                case "ingreso": Contabilidad.ingreso(obj); break;
+                case "ingreso": Contabilidad.ingreso(obj, conectInstance); break;
                 case "ingreso_efectivo": Contabilidad.ingreso_efectivo(obj); break;
-                case "amortizacion": Contabilidad.amortizacion(obj); break;
-                case "ingreso_banco": Contabilidad.ingreso_banco(obj); break;
+                //case "amortizacion": Contabilidad.amortizacion(obj); break;
+                case "ingreso_banco": Contabilidad.ingreso_banco(obj, conectInstance); break;
                 case "egreso_banco": 
                     obj.getJSONObject("data").put("monto", obj.getJSONObject("data").getDouble("monto")*-1);
-                    Contabilidad.egreso_banco(obj); 
+                    Contabilidad.egreso_banco(obj, conectInstance); 
                     obj.getJSONObject("data").put("monto", obj.getJSONObject("data").getDouble("monto")*-1);
                 break;
                 case "egreso_efectivo": 
                     obj.getJSONObject("data").put("monto", obj.getJSONObject("data").getDouble("monto")*-1);
-                    Contabilidad.egreso_efectivo(obj); 
+                    Contabilidad.egreso_efectivo(obj, conectInstance); 
                     obj.getJSONObject("data").put("monto", obj.getJSONObject("data").getDouble("monto")*-1);
                 break;
 
@@ -153,10 +178,11 @@ public class CajaDetalle {
                 break;
                 default: break;
             }
-            SPGConect.insertArray(COMPONENT, new JSONArray().put(newData));
+            conectInstance.commit();
             obj.put("data", data);
             obj.put("estado", "exito");
         } catch (Exception e) {
+            conectInstance.rollback();
             obj.put("estado", "error");
             obj.put("error", e.getMessage());
             e.printStackTrace();
