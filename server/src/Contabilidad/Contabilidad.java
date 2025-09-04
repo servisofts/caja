@@ -28,6 +28,24 @@ public class Contabilidad {
         return resp;
     }
 
+    public static JSONObject getMonedaBase(String key_empresa){
+        JSONObject send = new JSONObject();
+        send.put("service", "empresa");
+        send.put("component", "empresa_moneda");
+        send.put("type", "getAll");
+        send.put("key_empresa", key_empresa);
+        JSONObject resp = SocketCliente.sendSinc("empresa", send);
+        resp = resp.getJSONObject("data");
+
+        for (String key : resp.keySet()) {
+            JSONObject item = resp.getJSONObject(key);
+            if (item.getString("tipo").equals("base")) {
+                return item;
+            }
+        }
+        return resp;
+    }
+
     public static JSONObject getAjusteEmpresa(String key_empresa, String key_ajuste) {
         JSONObject send = new JSONObject();
         send.put("component", "ajuste_empresa");
@@ -164,7 +182,10 @@ public class Contabilidad {
     }
     public static void caja_cierre(JSONObject obj) throws Exception{
 
-        
+        obj.getJSONObject("data").put("monto_cierre", 0);
+        obj.getJSONObject("data").put("fecha_cierre", SUtil.now());
+
+        SPGConect.editObject("caja", obj.getJSONObject("data"));
         //JSONObject send = new JSONObject();
         //send.put("component", "asiento_contable");
         //send.put("type", "set");
@@ -189,48 +210,54 @@ public class Contabilidad {
 
 
 
-        JSONObject puntoVentaTipoPagoMontos = Caja.getMontoCajaTipoPago(obj.getJSONObject("data").getString("key"));
-        JSONObject puntoVentaTipoPagos =Contabilidad.puntoVentaTipoPago(obj.getJSONObject("data").getString("key_punto_venta"),null);
+        //JSONArray puntoVentaTipoPagoMontos = Caja.getMontoCajaTipoPago(obj.getJSONObject("data").getString("key"));
+        //JSONObject puntoVentaTipoPagos =Contabilidad.puntoVentaTipoPago(obj.getJSONObject("data").getString("key_punto_venta"),null);
         //JSONObject puntoVentaTipoPagos = obj.getJSONObject("punto_venta_tipo_pago");
-        JSONObject puntoVentaTipoPago;
+        //JSONObject puntoVentaTipoPago;
 
         //cuenta contable caja
         //String keyCuentaContableCaja = obj.getJSONObject("data").getString("key_cuenta_contable");
         
         //String keyCuentaContableBanco;
-        double monto;
-        double monto_cierre = 0;
-        for (int i = 0; i < JSONObject.getNames(puntoVentaTipoPagos).length; i++) {
-            puntoVentaTipoPago = puntoVentaTipoPagos.getJSONObject(JSONObject.getNames(puntoVentaTipoPagos)[i]);
-            String keyTipoPago=puntoVentaTipoPago.getString("key_tipo_pago");
-
-            JSONObject tipoPago = Contabilidad.getTipoPago(keyTipoPago);
-            if(tipoPago.optBoolean("pasa_por_caja")){
-                // manda a bancos
-                if(puntoVentaTipoPago.has("key_cuenta_contable")){
-                    //keyCuentaContableBanco = puntoVentaTipoPago.getString("key_cuenta_contable");
-                    if(puntoVentaTipoPagoMontos.has(puntoVentaTipoPago.getString("key_tipo_pago"))){
-                        monto = puntoVentaTipoPagoMontos.getJSONObject(puntoVentaTipoPago.getString("key_tipo_pago")).getDouble("monto");
-                        monto_cierre+=monto;
-
-                        //JSONObject det = new JSONObject();
-                        //det.put("key_cuenta_contable", keyCuentaContableBanco);
-                        //det.put("glosa", "Cierre de caja "+puntoVentaTipoPago.getString("key_tipo_pago"));
-                        //det.put("debe", monto);
-                        //detalle.put(det);
-                
-                
-                        // Sale de la cuenta que me pasa el frontend por el haber
-                        //det = new JSONObject();
-                        //det.put("key_cuenta_contable", keyCuentaContableCaja);
-                        //det.put("glosa", "Cierre de caja "+puntoVentaTipoPago.getString("key_tipo_pago"));
-                        //det.put("haber", monto);
-                        //detalle.put(det);
-                    }
-                }
-                
-            }
-        }
+        //double monto;
+        //double monto_cierre = 0;
+        //for (int i = 0; i < JSONObject.getNames(puntoVentaTipoPagos).length; i++) {
+        //    puntoVentaTipoPago = puntoVentaTipoPagos.getJSONObject(JSONObject.getNames(puntoVentaTipoPagos)[i]);
+        //    String keyTipoPago=puntoVentaTipoPago.getString("key_tipo_pago");
+//
+        //    JSONObject tipoPago = Contabilidad.getTipoPago(keyTipoPago);
+        //    if(tipoPago.optBoolean("pasa_por_caja")){
+        //        // manda a bancos
+        //        if(puntoVentaTipoPago.has("key_cuenta_contable")){
+        //            //keyCuentaContableBanco = puntoVentaTipoPago.getString("key_cuenta_contable");
+        //            if(puntoVentaTipoPagoMontos.length() > 0){
+        //                for (int j = 0; j < puntoVentaTipoPagoMontos.length(); j++) {
+        //                    if(puntoVentaTipoPagoMontos.getJSONObject(j).getString("key_tipo_pago").equals(puntoVentaTipoPago.getString("key_tipo_pago"))){
+        //                        monto = puntoVentaTipoPagoMontos.getJSONObject(j).getDouble("monto");
+        //                        monto_cierre+=monto;
+        //                        break;
+        //                    }
+        //                }
+        //            }
+//
+        //                //JSONObject det = new JSONObject();
+        //                //det.put("key_cuenta_contable", keyCuentaContableBanco);
+        //                //det.put("glosa", "Cierre de caja "+puntoVentaTipoPago.getString("key_tipo_pago"));
+        //                //det.put("debe", monto);
+        //                //detalle.put(det);
+        //        
+        //        
+        //                // Sale de la cuenta que me pasa el frontend por el haber
+        //                //det = new JSONObject();
+        //                //det.put("key_cuenta_contable", keyCuentaContableCaja);
+        //                //det.put("glosa", "Cierre de caja "+puntoVentaTipoPago.getString("key_tipo_pago"));
+        //                //det.put("haber", monto);
+        //                //detalle.put(det);
+        //            
+        //        }
+        //        
+        //    }
+        //}
 
         
       
@@ -244,17 +271,17 @@ public class Contabilidad {
         //    return;
         //}
 
-        monto_cierre=Math.round(monto_cierre * 100.0) / 100.0;
-
-        if(monto_cierre<0){
-            throw new Exception("Su caja esta en negativo");
-        }
+        //monto_cierre=Math.round(monto_cierre * 100.0) / 100.0;
+//
+        //if(monto_cierre<0){
+        //    throw new Exception("Su caja esta en negativo");
+        //}
 
         //obj.getJSONObject("data").put("key_comprobante_cierre", data.getJSONObject("data").getString("key"));
-        obj.getJSONObject("data").put("monto_cierre", monto_cierre);
-        obj.getJSONObject("data").put("fecha_cierre", SUtil.now());
-
-        SPGConect.editObject("caja", obj.getJSONObject("data"));
+        //obj.getJSONObject("data").put("monto_cierre", 0);
+        //obj.getJSONObject("data").put("fecha_cierre", SUtil.now());
+//
+        //SPGConect.editObject("caja", obj.getJSONObject("data"));
 
     }
     public static void ingreso_banco(JSONObject obj, ConectInstance conectInstance) throws Exception{
@@ -272,7 +299,15 @@ public class Contabilidad {
         JSONObject caja = Caja.getByKey(caja_detalle.getString("key_caja"));
 
         String keyTipoPago=obj.getJSONObject("data").getString("key_tipo_pago");
-        String keyMoneda=obj.getJSONObject("data").getString("key_moneda");
+        String keyMoneda=obj.getJSONObject("data").optString("key_moneda", null);
+
+        JSONObject moneda;
+        if(keyMoneda == null){
+            moneda = Contabilidad.getMonedaBase(caja.getString("key_empresa"));
+            keyMoneda = moneda.getString("key");
+        }else{
+            moneda = Contabilidad.getMoneda(caja.getString("key_empresa"), keyMoneda);
+        }
 
         JSONObject tipoPago = Contabilidad.getTipoPago(keyTipoPago);
 
@@ -280,10 +315,8 @@ public class Contabilidad {
             throw new Exception("El tipo de pago no pasa por caja");
         }
 
-        String keyEmpresa = caja.getString("key_empresa");
 
         JSONObject puntoVentaTipoPago = Contabilidad.puntoVentaTipoPago(caja.getString("key_punto_venta"), keyTipoPago, keyMoneda);
-        JSONObject moneda = Contabilidad.getMoneda(keyEmpresa, keyMoneda);
         System.out.println(moneda);
 
         JSONObject send = new JSONObject();
@@ -356,11 +389,17 @@ public class Contabilidad {
             throw new Exception("El tipo de pago no pasa por caja");
         }
 
-        JSONObject cajaTipoPago = Caja.getMontoCajaTipoPago(caja_detalle.getString("key_caja"));
+        JSONArray cajaTipoPago = Caja.getMontoCajaTipoPago(caja_detalle.getString("key_caja"));
 
-        double monto = cajaTipoPago.getJSONObject(caja_detalle.getString("key_tipo_pago")).optDouble("monto");
+        double monto = 0;
+        for (int i = 0; i < cajaTipoPago.length(); i++) {
+            JSONObject item = cajaTipoPago.getJSONObject(i);
+            if (item.getString("key_tipo_pago").equals(caja_detalle.getString("key_tipo_pago"))) {
+                monto = item.optDouble("monto");
+                break;
+            }
+        }
 
-        
         double montoFrontend=obj.getJSONObject("data").getDouble("monto");
         montoFrontend = Math.round(montoFrontend * 100.0) / 100.0;
         monto = Math.round(monto * 100.0) / 100.0;

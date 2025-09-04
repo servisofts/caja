@@ -201,10 +201,10 @@ public class Caja {
         }
     }
 
-    public static JSONObject getMontoCajaTipoPago(String key_caja) {
+    public static JSONArray getMontoCajaTipoPago(String key_caja) {
         try {
             
-            return SPGConect.ejecutarConsultaObject("select get_monto_caja_tipo_pago('"+key_caja+"') as json");
+            return SPGConect.ejecutarConsultaArray("select get_monto_caja_tipo_pago('"+key_caja+"') as json");
 
         }catch(Exception e){
             e.printStackTrace();
@@ -226,7 +226,7 @@ public class Caja {
             if(obj.optString("estado").equals("error")){
                 return;
             }
-            Notificar.send("💻 Cerraste una caja", "Monto de cierre Bs. ", data, obj.getJSONObject("servicio").getString("key"), obj.getString("key_usuario"));
+            //Notificar.send("💻 Cerraste una caja", "Monto de cierre Bs. ", data, obj.getJSONObject("servicio").getString("key"), obj.getString("key_usuario"));
 
             SPGConect.editObject(COMPONENT, data);
             obj.put("data", data);

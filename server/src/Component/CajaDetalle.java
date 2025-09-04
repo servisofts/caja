@@ -67,10 +67,11 @@ public class CajaDetalle {
                 return new JSONObject().put("monto", 0);
             }
             double monto=0;
-            JSONObject puntoVentaTipoPagoMontos = Caja.getMontoCajaTipoPago(last.getString("key"));
+            JSONArray puntoVentaTipoPagoMontos = Caja.getMontoCajaTipoPago(last.getString("key"));
             JSONArray detalle = new JSONArray();
-            for (String key : puntoVentaTipoPagoMontos.keySet()) {
-                JSONObject item = puntoVentaTipoPagoMontos.getJSONObject(key);
+            for (int i = 0; i < puntoVentaTipoPagoMontos.length(); i++) {
+                JSONObject item = puntoVentaTipoPagoMontos.getJSONObject(i);
+                JSONObject moneda = Contabilidad.getMoneda(last.getString("key_empresa"), item.getString("key_moneda"));
 
                 JSONObject tipoPago = Contabilidad.getTipoPago(item.getString("key_tipo_pago"));
 
@@ -80,6 +81,8 @@ public class CajaDetalle {
                     det.put("key", SUtil.uuid());
                     det.put("key_caja", key_caja);
                     det.put("key_tipo_pago", item.getString("key_tipo_pago"));
+                    det.put("key_moneda", item.getString("key_moneda"));
+                    det.put("tipo_cambio", moneda.getDouble("tipo_cambio"));
                     det.put("monto", item.getDouble("monto"));
                     det.put("descripcion", "Apertura de caja "+item.getString("key_tipo_pago"));
                     det.put("tipo", "apertura");
