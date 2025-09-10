@@ -164,9 +164,9 @@ public class CajaDetalle {
                 //case "amortizacion": Contabilidad.amortizacion(obj); break;
                 case "ingreso_banco": Contabilidad.ingreso_banco(obj, conectInstance); break;
                 case "egreso_banco": 
-                    obj.getJSONObject("data").put("monto", obj.getJSONObject("data").getDouble("monto")*-1);
+                    //obj.getJSONObject("data").put("monto", obj.getJSONObject("data").getDouble("monto")*-1);
                     Contabilidad.egreso_banco(obj, conectInstance); 
-                    obj.getJSONObject("data").put("monto", obj.getJSONObject("data").getDouble("monto")*-1);
+                    //obj.getJSONObject("data").put("monto", obj.getJSONObject("data").getDouble("monto")*-1);
                 break;
                 case "egreso_efectivo": 
                     obj.getJSONObject("data").put("monto", obj.getJSONObject("data").getDouble("monto")*-1);

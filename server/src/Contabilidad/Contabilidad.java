@@ -340,12 +340,27 @@ public class Contabilidad {
         det.put("key_cuenta_contable", puntoVentaTipoPago.getString("key_cuenta_contable"));
         det.put("glosa", "Caja ingreso de bancos");
         det.put("debe", monto);
+
+        det.put("tags", 
+            new JSONObject()
+            .put("key_usuario", obj.getString("key_usuario"))
+            .put("key_punto_venta", caja.getString("key_punto_venta"))
+            .put("key_caja", caja.getString("key"))
+            .put("key_sucursal", caja.getString("key_sucursal"))
+        );
         detalle.put(det);
 
         det = new JSONObject();
         det.put("key_cuenta_contable", caja_detalle.getString("key_cuenta_banco"));
         det.put("glosa", obj.getJSONObject("data").getString("descripcion"));
         det.put("haber", monto);
+        det.put("tags", 
+            new JSONObject()
+            .put("key_usuario", obj.getString("key_usuario"))
+            .put("key_punto_venta", caja.getString("key_punto_venta"))
+            .put("key_caja", caja.getString("key"))
+            .put("key_sucursal", caja.getString("key_sucursal"))
+        );
         detalle.put(det);
         
         comprobante.put("detalle", detalle);
@@ -382,8 +397,23 @@ public class Contabilidad {
 
         JSONObject caja = Caja.getByKey(caja_detalle.getString("key_caja"));
         JSONObject tipoPago = Contabilidad.getTipoPago(caja_detalle.getString("key_tipo_pago"));
+        String keyMoneda=obj.getJSONObject("data").optString("key_moneda", null);
 
-        
+        JSONObject moneda;
+        if(keyMoneda == null){
+            moneda = Contabilidad.getMonedaBase(caja.getString("key_empresa"));
+            keyMoneda = moneda.getString("key");
+        }else{
+            moneda = Contabilidad.getMoneda(caja.getString("key_empresa"), keyMoneda);
+        }
+
+
+        if(!tipoPago.optBoolean("pasa_por_caja", false)){
+            throw new Exception("El tipo de pago no pasa por caja");
+        }
+
+
+        System.out.println(moneda);
 
         if(!tipoPago.optBoolean("pasa_por_caja", false)){
             throw new Exception("El tipo de pago no pasa por caja");
@@ -409,7 +439,7 @@ public class Contabilidad {
         }
 
 
-        JSONObject puntoVentaTipoPago = Contabilidad.puntoVentaTipoPago(caja.getString("key_punto_venta"), caja_detalle.getString("key_tipo_pago"));
+        JSONObject puntoVentaTipoPago = Contabilidad.puntoVentaTipoPago(caja.getString("key_punto_venta"), caja_detalle.getString("key_tipo_pago"), keyMoneda);
 
         JSONObject send = new JSONObject();
         send.put("component", "asiento_contable");
@@ -429,12 +459,26 @@ public class Contabilidad {
         det.put("key_cuenta_contable", caja.getString("key_cuenta_contable"));
         det.put("glosa", obj.getJSONObject("data").getString("descripcion"));
         det.put("haber", obj.getJSONObject("data").getDouble("monto"));
+        det.put("tags", 
+            new JSONObject()
+            .put("key_usuario", obj.getString("key_usuario"))
+            .put("key_punto_venta", caja.getString("key_punto_venta"))
+            .put("key_caja", caja.getString("key"))
+            .put("key_sucursal", caja.getString("key_sucursal"))
+        );
         detalle.put(det);
 
         det = new JSONObject();
         det.put("key_cuenta_contable", puntoVentaTipoPago.getString("key_cuenta_contable"));
         det.put("glosa", obj.getJSONObject("data").getString("descripcion"));
         det.put("debe", obj.getJSONObject("data").getDouble("monto"));
+        det.put("tags", 
+            new JSONObject()
+            .put("key_usuario", obj.getString("key_usuario"))
+            .put("key_punto_venta", caja.getString("key_punto_venta"))
+            .put("key_caja", caja.getString("key"))
+            .put("key_sucursal", caja.getString("key_sucursal"))
+        );
         detalle.put(det);
         
         comprobante.put("detalle", detalle);
