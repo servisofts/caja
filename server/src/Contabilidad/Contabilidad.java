@@ -5,7 +5,7 @@ import org.json.JSONObject;
 import Component.Caja;
 import Servisofts.SPGConect;
 import Servisofts.SUtil;
-import SocketCliente.SocketCliente;
+import Servisofts.SocketCliente.SocketCliente;
 import Util.ConectInstance;
 
 public class Contabilidad {
