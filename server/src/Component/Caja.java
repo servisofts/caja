@@ -8,7 +8,7 @@ import com.google.gson.JsonObject;
 import Contabilidad.Contabilidad;
 import Servisofts.SPGConect;
 import Servisofts.SUtil;
-import Server.SSSAbstract.SSSessionAbstract;
+import Servisofts.Server.SSSAbstract.SSSessionAbstract;
 
 public class Caja {
     public static final String COMPONENT = "caja";

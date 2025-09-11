@@ -2,7 +2,7 @@ package Component;
 
 import org.json.JSONObject;
 
-import SocketCliente.SocketCliente;
+import Servisofts.SocketCliente.SocketCliente;
 
 public class Notificar {
     
@@ -20,7 +20,7 @@ public class Notificar {
             not_data.put("data", data);
             notificar.put("data", not_data);
             
-            SocketCliente.send("notification", notificar.toString()); 
+            SocketCliente.send("notification", notificar); 
         }catch(Exception e){
             e.printStackTrace();
         }
