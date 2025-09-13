@@ -1,0 +1,2 @@
+ln -s /home/ruddypazd/Documents/GitHub/servisofts-server/servisofts-java-service-2/src/Servisofts ../src/Servisofts
+ln -s /home/ruddypazd/Documents/GitHub/servisofts-server/servisofts-java-service-2/lib ../lib/lib
