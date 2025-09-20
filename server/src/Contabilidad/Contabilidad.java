@@ -68,6 +68,8 @@ public class Contabilidad {
         return resp.getJSONObject("data");
     }
 
+
+
     public static JSONObject puntoVentaTipoPago(String key_punto_venta, String key_tipo_pago) {
         JSONObject send = new JSONObject();
         send.put("component", "punto_venta_tipo_pago");
@@ -328,7 +330,7 @@ public class Contabilidad {
 
         JSONObject puntoVentaTipoPago = Contabilidad.puntoVentaTipoPago(caja.getString("key_punto_venta"), keyTipoPago,
                 keyMoneda);
-        System.out.println(moneda);
+        // System.out.println(moneda);
 
 
 
@@ -417,7 +419,7 @@ public class Contabilidad {
         }
 
 
-        System.out.println(moneda);
+        //System.out.println(moneda);
 
         if(!tipoPago.optBoolean("pasa_por_caja", false)){
             throw new Exception("El tipo de pago no pasa por caja");

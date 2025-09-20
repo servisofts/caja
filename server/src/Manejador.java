@@ -14,15 +14,12 @@ public class Manejador {
             return;
         }
         switch (obj.getString("component")) {
-            case Caja.COMPONENT:
-                Caja.onMessage(obj, session);
-                break;
-            case CajaDetalle.COMPONENT:
-                CajaDetalle.onMessage(obj, session);
-                break;
-            case CajaDetalleMoneda.COMPONENT:
-                CajaDetalleMoneda.onMessage(obj, session);
-                break;
+            case Caja.COMPONENT: Caja.onMessage(obj, session); break;
+            case CajaDetalle.COMPONENT: CajaDetalle.onMessage(obj, session); break;
+            case CajaDetalleMoneda.COMPONENT: CajaDetalleMoneda.onMessage(obj, session); break;
+            case TipoPago.COMPONENT: new TipoPago(obj, session); break;
+            case EmpresaTipoPago.COMPONENT: new EmpresaTipoPago(obj, session); break;
+            case EmpresaTipoPagoPuntoVenta.COMPONENT: new EmpresaTipoPagoPuntoVenta(obj, session); break;
         }
     }
 }

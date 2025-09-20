@@ -9,6 +9,7 @@ import Contabilidad.Contabilidad;
 import Servisofts.SPGConect;
 import Servisofts.SUtil;
 import Servisofts.Server.SSSAbstract.SSSessionAbstract;
+import Util.ConectInstance;
 
 public class Caja {
     public static final String COMPONENT = "caja";
@@ -167,7 +168,11 @@ public class Caja {
 
 
     public static void registro(JSONObject obj, SSSessionAbstract session) {
+        ConectInstance conectInstance = null;
         try {
+
+            conectInstance = new ConectInstance();
+            conectInstance.Transacction();
 
             JSONObject data = obj.getJSONObject("data");
 
@@ -186,18 +191,24 @@ public class Caja {
             data.put("fecha_on", SUtil.now());
             data.put("key_usuario", obj.getString("key_usuario"));
             data.put("key_servicio", obj.getJSONObject("servicio").getString("key"));
-            SPGConect.insertArray(COMPONENT, new JSONArray().put(data));
+            conectInstance.insertArray(COMPONENT, new JSONArray().put(data));
 
-            JSONObject apertura = CajaDetalle.Apertura(data.getString("key_punto_venta"), data.getString("key"));
+            JSONObject apertura = CajaDetalle.Apertura(data.getString("key_punto_venta"), data.getString("key"), conectInstance);
         
             Notificar.send("💻 Abriste una caja", "Monto de apertura Bs. "+apertura.getDouble("monto"), data, obj.getJSONObject("servicio").getString("key"), obj.getString("key_usuario"));
 
             obj.put("data", data);
             obj.put("estado", "exito");
+            conectInstance.commit();
         } catch (Exception e) {
             obj.put("estado", "error");
             obj.put("error", e.getMessage());
+            conectInstance.rollback();
             e.printStackTrace();
+        } finally {
+            if (conectInstance != null) {
+                conectInstance.close();
+            }
         }
     }
 
