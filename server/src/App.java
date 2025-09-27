@@ -7,7 +7,7 @@ public class App {
             Servisofts.ManejadorCliente = ManejadorCliente::onMessage;
             Servisofts.Manejador = Manejador::onMessage;
             Servisofts.initialize(); 
-            //PDF.prueba("asd", "·FF0000");
+            //PDF.prueba("asd", "·FF0000"); 
         } catch (Exception e) {
             e.printStackTrace();
         }
