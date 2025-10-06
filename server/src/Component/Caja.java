@@ -19,6 +19,9 @@ public class Caja {
             case "getAll":
                 getAll(obj, session);
                 break;
+            case "getAllCajasByEmpresa":
+                getAllCajasByEmpresa(obj, session);
+                break;
             case "getActiva":
                 getActiva(obj, session);
                 break;
@@ -40,7 +43,20 @@ public class Caja {
             case "reporteCuentas":
                 reporteCuentas(obj, session);
                 break;
-                
+
+        }
+    }
+
+    public static void getAllCajasByEmpresa(JSONObject obj, SSSessionAbstract session) {
+        try {
+            String consulta = "select _getAllCajasByEmpresa('" + obj.getString("key_empresa") + "','" + obj.getString("fecha_inicio") + "','" + obj.getString("fecha_fin") + "') as json";
+            JSONObject data = SPGConect.ejecutarConsultaObject(consulta);
+            obj.put("data", data);
+            obj.put("estado", "exito");
+        } catch (Exception e) {
+            obj.put("estado", "error");
+            obj.put("error", e.getMessage());
+            e.printStackTrace();
         }
     }
 
@@ -59,7 +75,8 @@ public class Caja {
 
     public static void getActiva(JSONObject obj, SSSessionAbstract session) {
         try {
-            String consulta = "select get_abiertas('" + obj.getString("key_empresa") + "', '" + obj.getString("key_usuario") + "') as json";
+            String consulta = "select get_abiertas('" + obj.getString("key_empresa") + "', '"
+                    + obj.getString("key_usuario") + "') as json";
             JSONObject data = SPGConect.ejecutarConsultaObject(consulta);
             obj.put("data", data);
             obj.put("estado", "exito");
@@ -72,7 +89,8 @@ public class Caja {
 
     public static void getHistorico(JSONObject obj, SSSessionAbstract session) {
         try {
-            String consulta = "select get_historico_caja('" + obj.getJSONObject("servicio").getString("key") + "', '"+obj.getString("fecha_inicio")+"','"+obj.getString("fecha_fin")+"') as json";
+            String consulta = "select get_historico_caja('" + obj.getJSONObject("servicio").getString("key") + "', '"
+                    + obj.getString("fecha_inicio") + "','" + obj.getString("fecha_fin") + "') as json";
             JSONObject data = SPGConect.ejecutarConsultaObject(consulta);
             obj.put("data", data);
             obj.put("estado", "exito");
@@ -85,7 +103,8 @@ public class Caja {
 
     public static void reporteCuentas(JSONObject obj, SSSessionAbstract session) {
         try {
-            String consulta = "select reporte_cuentas('" + obj.getJSONObject("servicio").getString("key") + "', '"+obj.getString("fecha_inicio")+"', '"+obj.getString("fecha_fin")+"') as json";
+            String consulta = "select reporte_cuentas('" + obj.getJSONObject("servicio").getString("key") + "', '"
+                    + obj.getString("fecha_inicio") + "', '" + obj.getString("fecha_fin") + "') as json";
             JSONObject data = SPGConect.ejecutarConsultaObject(consulta);
             obj.put("data", data);
             obj.put("estado", "exito");
@@ -108,6 +127,7 @@ public class Caja {
             e.printStackTrace();
         }
     }
+
     public static JSONObject getLast(String key_punto_venta) {
         try {
             String consulta = "select get_ultima_caja('" + key_punto_venta + "') as json";
@@ -131,11 +151,9 @@ public class Caja {
         }
     }
 
-    
-    
     public static void getByKey(JSONObject obj, SSSessionAbstract session) {
         try {
-            String consulta = "select get_by_key('" + COMPONENT + "','"+obj.getString("key")+"') as json";
+            String consulta = "select get_by_key('" + COMPONENT + "','" + obj.getString("key") + "') as json";
             JSONObject data = SPGConect.ejecutarConsultaObject(consulta);
             obj.put("data", data);
             obj.put("estado", "exito");
@@ -166,7 +184,6 @@ public class Caja {
         }
     }
 
-
     public static void registro(JSONObject obj, SSSessionAbstract session) {
         ConectInstance conectInstance = null;
         try {
@@ -176,10 +193,9 @@ public class Caja {
 
             JSONObject data = obj.getJSONObject("data");
 
-
             JSONObject cajas = getByKeyPuntoVenta(data.getString("key_punto_venta"));
 
-            if(!cajas.isEmpty()){
+            if (!cajas.isEmpty()) {
                 obj.put("estado", "error");
                 obj.put("error", "Caja abierta");
                 obj.put("data", cajas);
@@ -193,9 +209,11 @@ public class Caja {
             data.put("key_servicio", obj.getJSONObject("servicio").getString("key"));
             conectInstance.insertArray(COMPONENT, new JSONArray().put(data));
 
-            JSONObject apertura = CajaDetalle.Apertura(data.getString("key_punto_venta"), data.getString("key"), conectInstance);
-        
-            Notificar.send("💻 Abriste una caja", "Monto de apertura Bs. "+apertura.getDouble("monto"), data, obj.getJSONObject("servicio").getString("key"), obj.getString("key_usuario"));
+            JSONObject apertura = CajaDetalle.Apertura(data.getString("key_punto_venta"), data.getString("key"),
+                    conectInstance);
+
+            Notificar.send("💻 Abriste una caja", "Monto de apertura Bs. " + apertura.getDouble("monto"), data,
+                    obj.getJSONObject("servicio").getString("key"), obj.getString("key_usuario"));
 
             obj.put("data", data);
             obj.put("estado", "exito");
@@ -214,35 +232,34 @@ public class Caja {
 
     public static JSONArray getMontoCajaTipoPago(String key_caja) {
         try {
-            
-            return SPGConect.ejecutarConsultaArray("select get_monto_caja_tipo_pago('"+key_caja+"') as json");
 
-        }catch(Exception e){
+            return SPGConect.ejecutarConsultaArray("select get_monto_caja_tipo_pago('" + key_caja + "') as json");
+
+        } catch (Exception e) {
             e.printStackTrace();
             return null;
         }
-    
+
     }
 
     public static void editar(JSONObject obj, SSSessionAbstract session) {
         try {
             JSONObject data = obj.getJSONObject("data");
 
-            
-
-            if(obj.has("action") && obj.getString("action").equals("cerrar")){
+            if (obj.has("action") && obj.getString("action").equals("cerrar")) {
                 Contabilidad.caja_cierre(obj);
             }
 
-            if(obj.optString("estado").equals("error")){
+            if (obj.optString("estado").equals("error")) {
                 return;
             }
-            //Notificar.send("💻 Cerraste una caja", "Monto de cierre Bs. ", data, obj.getJSONObject("servicio").getString("key"), obj.getString("key_usuario"));
+            // Notificar.send("💻 Cerraste una caja", "Monto de cierre Bs. ", data,
+            // obj.getJSONObject("servicio").getString("key"),
+            // obj.getString("key_usuario"));
 
             SPGConect.editObject(COMPONENT, data);
             obj.put("data", data);
             obj.put("estado", "exito");
-        
 
         } catch (Exception e) {
             obj.put("estado", "error");
@@ -250,6 +267,5 @@ public class Caja {
             e.printStackTrace();
         }
     }
-
 
 }
