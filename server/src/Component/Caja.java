@@ -22,6 +22,9 @@ public class Caja {
             case "getAllCajasByEmpresa":
                 getAllCajasByEmpresa(obj, session);
                 break;
+            case "getAllMovimientosCajasByEmpresa":
+                getAllMovimientosCajasByEmpresa(obj, session);
+                break;
             case "getActiva":
                 getActiva(obj, session);
                 break;
@@ -50,6 +53,18 @@ public class Caja {
     public static void getAllCajasByEmpresa(JSONObject obj, SSSessionAbstract session) {
         try {
             String consulta = "select _getAllCajasByEmpresa('" + obj.getString("key_empresa") + "','" + obj.getString("fecha_inicio") + "','" + obj.getString("fecha_fin") + "') as json";
+            JSONObject data = SPGConect.ejecutarConsultaObject(consulta);
+            obj.put("data", data);
+            obj.put("estado", "exito");
+        } catch (Exception e) {
+            obj.put("estado", "error");
+            obj.put("error", e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    public static void getAllMovimientosCajasByEmpresa(JSONObject obj, SSSessionAbstract session) {
+        try {
+            String consulta = "select _getallmovimientoscajasbyempresa('" + obj.getString("key_empresa") + "','" + obj.getString("fecha_inicio") + "','" + obj.getString("fecha_fin") + "') as json";
             JSONObject data = SPGConect.ejecutarConsultaObject(consulta);
             obj.put("data", data);
             obj.put("estado", "exito");
