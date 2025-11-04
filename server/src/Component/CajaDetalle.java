@@ -447,8 +447,13 @@ public class CajaDetalle {
 
             JSONObject empresatipoPago = EmpresaTipoPago.getByKey(item.getString("key_empresa_tipo_pago"));
 
+            if(empresatipoPago == null) continue;
+            if(!empresatipoPago.getString("key_tipo_pago").equals("caja")) continue;
+             // Si el tipo de pago es mayor a 0
+
             if(item.getDouble("monto")>0){
                 JSONObject det = new JSONObject();
+
                 monto+=item.getDouble("monto");
                 det.put("key", SUtil.uuid());
                 det.put("key_caja", key_caja);
