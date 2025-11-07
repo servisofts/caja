@@ -440,6 +440,7 @@ public class CajaDetalle {
 
             if(item.getDouble("monto")>0){
                 JSONObject det = new JSONObject();
+
                 monto+=item.getDouble("monto");
                 det.put("key", SUtil.uuid());
                 det.put("key_caja", key_caja);
