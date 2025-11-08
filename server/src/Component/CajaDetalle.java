@@ -40,6 +40,66 @@ public class CajaDetalle {
             case "amortizarCuotaCompra":
                 amortizarCuotaCompra(obj, session);
                 break;
+            case "anularVenta":
+                anularVenta(obj, session);
+                break;
+        }
+    }
+
+    public static void anularVenta(JSONObject obj, SSSessionAbstract session) {
+        ConectInstance conectInstance = null;
+
+        try {
+            conectInstance = new ConectInstance();
+            conectInstance.Transacction();
+
+            String key_compra_venta = obj.optString("key_compra_venta");
+
+            JSONObject detalles = CajaDetalle.getByKeyCompraVenta(key_compra_venta);
+
+            if (detalles == null) {
+                throw new Exception("No se encontraron detalles para la compra venta: " + key_compra_venta);
+            }
+
+            obj.put("caja_detalle", detalles);
+
+            JSONObject empresaTipoPago = EmpresaTipoPago.getAll(obj.getString("key_empresa"));
+            obj.put("component", "compra_venta");
+            obj.put("empresa_tipo_pago", empresaTipoPago );
+
+            JSONObject data = SocketCliente.sendSinc("compra_venta", obj);
+
+            if (data.getString("estado").equals("error")) {
+                throw new Exception(data.optString("error", "Error al anular la venta en compra venta"));
+            }
+
+            if (detalles != null && !detalles.isEmpty()) {
+                for (int i = 0; i < JSONObject.getNames(detalles).length; i++) {
+                    String key = JSONObject.getNames(detalles)[i];
+                    JSONObject detalle = detalles.getJSONObject(key);
+
+                    detalle.put("monto", detalle.getDouble("monto") * -1);
+                    detalle.put("descripcion", "ANULACION: " + detalle.optString("descripcion"));
+                    detalle.put("tipo", "anulacion_venta");
+                    detalle.put("key_compra_venta", key_compra_venta);
+                    detalle.put("fecha_on", SUtil.now());
+                    detalle.put("key", SUtil.uuid());
+                    conectInstance.insertArray(COMPONENT, new JSONArray().put(detalle));
+                }
+            }
+
+            obj.put("estado", "exito");
+
+            conectInstance.commit();
+        } catch (Exception e) {
+            e.printStackTrace();
+            obj.put("estado", "error");
+            obj.put("error", e.getMessage());
+            conectInstance.rollback();
+        } finally {
+            if (conectInstance != null) {
+                conectInstance.close();
+            }
         }
     }
 
@@ -50,9 +110,10 @@ public class CajaDetalle {
             conectInstance = new ConectInstance();
             conectInstance.Transacction();
 
+            String key_empresa = obj.getString("key_empresa");
             String key_caja = obj.getString("key_caja");
             String key_usuario = obj.getString("key_usuario");
-            JSONArray key_cuotas = obj.optJSONArray("key_cuotas");
+            JSONArray cuotas = obj.optJSONArray("cuotas");
 
             JSONArray cajaDetalle = new JSONArray();
             for (int i = 0; i < JSONObject.getNames(obj.getJSONObject("tipos_pago")).length; i++) {
@@ -222,6 +283,8 @@ public class CajaDetalle {
             JSONObject caja = Caja.getByKey(keyCaja);
             data.put("caja", caja);
 
+            String key_compra_venta = SUtil.uuid();
+
             JSONArray cajaDetalle = new JSONArray();
             for (int i = 0; i < JSONObject.getNames(data.getJSONObject("tipos_pago")).length; i++) {
                 String key = JSONObject.getNames(data.getJSONObject("tipos_pago"))[i];
@@ -239,7 +302,7 @@ public class CajaDetalle {
                 tipo_cambio = Math.round(tipo_cambio * 100.0) / 100.0;
 
                 JSONObject det = new JSONObject();
-                det.put("key", SUtil.uuid());
+                det.put("key", key_compra_venta);
                 det.put("key_caja", keyCaja);
                 det.put("key_empresa_tipo_pago", empresaTipoPago.getString("key"));
                 det.put("key_tipo_pago", empresaTipoPago.getString("key_tipo_pago"));
@@ -263,6 +326,8 @@ public class CajaDetalle {
             caja.put("detalle", cajaDetalle);
 
             // Se realiza la venta en compra venta
+
+            data.put("key_compra_venta", key_compra_venta);
 
             JSONObject send = new JSONObject();
             send.put("component", "compra_venta");
@@ -314,6 +379,8 @@ public class CajaDetalle {
             JSONObject caja = Caja.getByKey(keyCaja);
             data.put("caja", caja);
 
+            String key_compra_venta = SUtil.uuid();
+
             JSONArray cajaDetalle = new JSONArray();
             for (int i = 0; i < JSONObject.getNames(data.getJSONObject("tipos_pago")).length; i++) {
                 String key = JSONObject.getNames(data.getJSONObject("tipos_pago"))[i];
@@ -343,6 +410,7 @@ public class CajaDetalle {
                 det.put("fecha_on", SUtil.now());
                 det.put("estado", 1);
                 det.put("key_usuario", data.getString("key_usuario"));
+                det.put("key_compra_venta", key_compra_venta);
                 // det.put("key_comprobante", key_comprobante);
                 // det.put("codigo_comprobante", codigo_comprobante);
                 // det.put("data", info);
@@ -351,6 +419,8 @@ public class CajaDetalle {
             }
 
             caja.put("detalle", cajaDetalle);
+
+            data.put("key_compra_venta", key_compra_venta);
 
             JSONObject send = new JSONObject();
             send.put("component", "compra_venta");
@@ -434,14 +504,16 @@ public class CajaDetalle {
 
             JSONObject empresatipoPago = EmpresaTipoPago.getByKey(item.getString("key_empresa_tipo_pago"));
 
-            if(empresatipoPago == null) continue;
-            if(!empresatipoPago.getString("key_tipo_pago").equals("caja")) continue;
-             // Si el tipo de pago es mayor a 0
+            if (empresatipoPago == null)
+                continue;
+            if (!empresatipoPago.getString("key_tipo_pago").equals("caja"))
+                continue;
+            // Si el tipo de pago es mayor a 0
 
-            if(item.getDouble("monto")>0){
+            if (item.getDouble("monto") > 0) {
                 JSONObject det = new JSONObject();
 
-                monto+=item.getDouble("monto");
+                monto += item.getDouble("monto");
                 det.put("key", SUtil.uuid());
                 det.put("key_caja", key_caja);
                 det.put("key_tipo_pago", empresatipoPago.getString("key_tipo_pago"));
@@ -481,6 +553,17 @@ public class CajaDetalle {
     public static JSONObject getByKey(String key) {
         try {
             String consulta = "select get_by_key('" + COMPONENT + "', '" + key + "') as json";
+            return SPGConect.ejecutarConsultaObject(consulta);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    public static JSONObject getByKeyCompraVenta(String key_compra_venta) {
+        try {
+            String consulta = "select get_by('" + COMPONENT + "', 'key_compra_venta', '" + key_compra_venta
+                    + "') as json";
             return SPGConect.ejecutarConsultaObject(consulta);
         } catch (Exception e) {
             e.printStackTrace();
