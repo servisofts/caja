@@ -65,7 +65,7 @@ public class CajaDetalle {
 
             JSONObject empresaTipoPago = EmpresaTipoPago.getAll(obj.getString("key_empresa"));
             obj.put("component", "compra_venta");
-            obj.put("empresa_tipo_pago", empresaTipoPago );
+            obj.put("empresa_tipo_pago", empresaTipoPago);
 
             JSONObject data = SocketCliente.sendSinc("compra_venta", obj);
 
@@ -103,8 +103,10 @@ public class CajaDetalle {
         }
     }
 
-    public static void amortizarCuotaCompra(JSONObject obj, SSSessionAbstract session) {
+    public static void amortizarCuotaComprass(JSONObject obj, SSSessionAbstract session) {
         ConectInstance conectInstance = null;
+        System.out.println("eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" + obj);
+
         try {
 
             conectInstance = new ConectInstance();
@@ -114,6 +116,9 @@ public class CajaDetalle {
             String key_caja = obj.getString("key_caja");
             String key_usuario = obj.getString("key_usuario");
             JSONArray cuotas = obj.optJSONArray("cuotas");
+
+            JSONObject tiposPago = obj.getJSONObject("tipos_pago");
+            System.out.println("eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee tipos_pago: " + tiposPago);
 
             JSONArray cajaDetalle = new JSONArray();
             for (int i = 0; i < JSONObject.getNames(obj.getJSONObject("tipos_pago")).length; i++) {
@@ -149,9 +154,107 @@ public class CajaDetalle {
 
             }
 
+            obj.put("component", "compra_venta");
+            JSONObject response = SocketCliente.sendSinc("compra_venta", obj);
+            // System.out.println(response);
+
+            if (!response.getString("estado").equals("exito")) {
+                throw new Exception(response.optString("error", "Error al registrar la compra"));
+            }
+
             // conectInstance.insertArray("caja_detalle", cajaDetalle);
 
             conectInstance.commit();
+        } catch (Exception e) {
+            e.printStackTrace();
+            obj.put("estado", "error");
+            obj.put("error", e.getMessage());
+            conectInstance.rollback();
+        } finally {
+            if (conectInstance != null) {
+                conectInstance.close();
+            }
+        }
+    }
+
+    public static void amortizarCuotaCompra(JSONObject obj, SSSessionAbstract session) {
+        ConectInstance conectInstance = null;
+
+        try {
+
+            conectInstance = new ConectInstance();
+            conectInstance.Transacction();
+
+            String key_empresa = obj.getString("key_empresa");
+            String key_caja = obj.getString("key_caja");
+            String key_usuario = obj.getString("key_usuario");
+
+            // 🚀 CORRECCIÓN AQUÍ
+            JSONObject data = obj.getJSONObject("data");
+            JSONObject tiposPago = data.getJSONObject("tipos_pago");
+            JSONArray cuotas = data.optJSONArray("cuotas");
+
+            System.out.println("cuotas: " + cuotas);
+            System.out.println("tipos_pago: " + tiposPago);
+            System.out.println("aaaaaaaaaas: " + obj);
+
+            JSONArray cajaDetalle = new JSONArray();
+
+            String[] names = JSONObject.getNames(tiposPago);
+
+            for (String key : names) {
+
+                JSONObject value = tiposPago.getJSONObject(key);
+                JSONObject empresaTipoPago = EmpresaTipoPago.getByKey(key);
+
+                empresaTipoPago.put("monto_nacional", value.optDouble("monto_nacional"));
+                empresaTipoPago.put("monto_extranjera", value.optDouble("monto_extranjera"));
+
+                double tipo_cambio = value.optDouble("monto_nacional")
+                        / value.optDouble("monto_extranjera", value.optDouble("monto_nacional"));
+                tipo_cambio = Math.round(tipo_cambio * 100.0) / 100.0;
+
+                JSONObject det = new JSONObject();
+                det.put("key", SUtil.uuid());
+                det.put("key_caja", key_caja);
+                det.put("key_empresa_tipo_pago", empresaTipoPago.getString("key"));
+                det.put("key_tipo_pago", empresaTipoPago.getString("key_tipo_pago"));
+                det.put("monto", value.getDouble("monto_extranjera"));
+                det.put("key_moneda", empresaTipoPago.getString("key_moneda"));
+                det.put("tipo_cambio", tipo_cambio);
+                det.put("descripcion", "Amortización de cuota de compra");
+                // det.put("descripcion", obj.optString("descripcion"));
+                // det.put("descripcion", data.optString("descripcion"));
+
+                det.put("tipo", "amortizacion_compra");
+                det.put("fecha", SUtil.now());
+                det.put("fecha_on", SUtil.now());
+                det.put("estado", 1);
+                det.put("key_usuario", key_usuario);
+
+                cajaDetalle.put(det);
+            }
+
+            conectInstance.insertArray("caja_detalle", cajaDetalle);
+
+            // obj.put("data",
+            // new JSONObject().put("cajaDetalle", cajaDetalle).put("tiposPago",
+            // tiposPago).put("cuotas", cuotas));
+
+          //  obj.put("data", cajaDetalle.getJSONObject(0).put("tipos_pago", tiposPago).put("cuotas", cuotas));
+
+            System.out.println("obj: " + obj);
+
+            obj.put("component", "compra_venta");
+            JSONObject response = SocketCliente.sendSinc("compra_venta", obj);
+
+            if (!response.getString("estado").equals("exito")) {
+                throw new Exception(response.optString("error", "Error al registrar la compra"));
+            }
+
+            obj.put("estado", "exito");
+            conectInstance.commit();
+
         } catch (Exception e) {
             e.printStackTrace();
             obj.put("estado", "error");

@@ -20,6 +20,8 @@ public class Manejador {
             case TipoPago.COMPONENT: new TipoPago(obj, session); break;
             case EmpresaTipoPago.COMPONENT: new EmpresaTipoPago(obj, session); break;
             case EmpresaTipoPagoPuntoVenta.COMPONENT: new EmpresaTipoPagoPuntoVenta(obj, session); break;
+            case Pasarela.COMPONENT: new Pasarela(obj, session); break;
+            case PasarelaEmpresa.COMPONENT: new PasarelaEmpresa(obj, session); break;
         }
     }
 }
