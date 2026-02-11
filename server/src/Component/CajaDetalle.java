@@ -41,12 +41,15 @@ public class CajaDetalle {
                 amortizarCuotaCompra(obj, session);
                 break;
             case "anularVenta":
-                anularVenta(obj, session);
+                anular(obj, session, "venta");
+                break;
+            case "anularCompra":
+                anular(obj, session, "compra");
                 break;
         }
     }
 
-    public static void anularVenta(JSONObject obj, SSSessionAbstract session) {
+    public static void anular(JSONObject obj, SSSessionAbstract session, String tipo) {
         ConectInstance conectInstance = null;
 
         try {
@@ -56,12 +59,16 @@ public class CajaDetalle {
             String key_compra_venta = obj.optString("key_compra_venta");
 
             JSONObject detalles = CajaDetalle.getByKeyCompraVenta(key_compra_venta);
+            
+            JSONObject caja = Caja.getByKey(obj.getString("key_caja"));
 
             if (detalles == null) {
                 throw new Exception("No se encontraron detalles para la compra venta: " + key_compra_venta);
             }
 
             obj.put("caja_detalle", detalles);
+            obj.put("key_punto_venta", caja.optString("key_punto_venta"));
+
 
             JSONObject empresaTipoPago = EmpresaTipoPago.getAll(obj.getString("key_empresa"));
             obj.put("component", "compra_venta");
@@ -70,7 +77,7 @@ public class CajaDetalle {
             JSONObject data = SocketCliente.sendSinc("compra_venta", obj);
 
             if (data.getString("estado").equals("error")) {
-                throw new Exception(data.optString("error", "Error al anular la venta en compra venta"));
+                throw new Exception(data.optString("error", "Error al anular la " + tipo + " en compra venta"));
             }
 
             if (detalles != null && !detalles.isEmpty()) {
@@ -80,7 +87,7 @@ public class CajaDetalle {
 
                     detalle.put("monto", detalle.getDouble("monto") * -1);
                     detalle.put("descripcion", "ANULACION: " + detalle.optString("descripcion"));
-                    detalle.put("tipo", "anulacion_venta");
+                    detalle.put("tipo", "anulacion_" + tipo);
                     detalle.put("key_compra_venta", key_compra_venta);
                     detalle.put("fecha_on", SUtil.now());
                     detalle.put("key", SUtil.uuid());
@@ -102,6 +109,8 @@ public class CajaDetalle {
             }
         }
     }
+
+    
 
     public static void amortizarCuotaComprass(JSONObject obj, SSSessionAbstract session) {
         ConectInstance conectInstance = null;
