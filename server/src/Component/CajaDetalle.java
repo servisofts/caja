@@ -216,8 +216,9 @@ public class CajaDetalle {
                 JSONObject value = tiposPago.getJSONObject(key);
                 JSONObject empresaTipoPago = EmpresaTipoPago.getByKey(key);
 
-                empresaTipoPago.put("monto_nacional", value.optDouble("monto_nacional"));
-                empresaTipoPago.put("monto_extranjera", value.optDouble("monto_extranjera"));
+                
+                value.put("key_cuenta_contable", empresaTipoPago.getString("key_cuenta_contable"));
+                value.put("empresa_tipo_pago",empresaTipoPago);
 
                 double tipo_cambio = value.optDouble("monto_nacional")
                         / value.optDouble("monto_extranjera", value.optDouble("monto_nacional"));
