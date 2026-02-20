@@ -1,6 +1,8 @@
+import Controllers.ventaController;
 import Manejadores.Manejador;
 import Manejadores.ManejadorCliente;
 import Servisofts.Servisofts;
+import Servisofts.http.Rest;
 
 public class App {
     public static void main(String[] args) {
@@ -8,8 +10,10 @@ public class App {
             Servisofts.DEBUG = false;
             Servisofts.ManejadorCliente = ManejadorCliente::onMessage;
             Servisofts.Manejador = Manejador::onMessage;
-            Servisofts.initialize(); 
-            //PDF.prueba("asd", "·FF0000"); 
+            Rest.addController(ventaController.class);
+
+            Servisofts.initialize();
+            // PDF.prueba("asd", "·FF0000");
         } catch (Exception e) {
             e.printStackTrace();
         }

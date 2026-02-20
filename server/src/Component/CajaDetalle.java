@@ -571,6 +571,99 @@ public class CajaDetalle {
             }
         }
     }
+    public static void venta2(JSONObject obj) {
+        ConectInstance conectInstance = null;
+        try {
+
+            conectInstance = new ConectInstance();
+            conectInstance.Transacction();
+
+            // Inicio
+            JSONObject data = obj.getJSONObject("data");
+            String keyCaja = data.getString("key_caja");
+
+            JSONObject caja = Caja.getByKey(keyCaja);
+            data.put("caja", caja);
+
+            String key_compra_venta = SUtil.uuid();
+
+            JSONArray cajaDetalle = new JSONArray();
+            for (int i = 0; i < JSONObject.getNames(data.getJSONObject("tipos_pago")).length; i++) {
+                String key = JSONObject.getNames(data.getJSONObject("tipos_pago"))[i];
+                JSONObject value = data.getJSONObject("tipos_pago").getJSONObject(key);
+                // Si el tipo de pago es mayor a 0
+                JSONObject empresaTipoPago = EmpresaTipoPago.getByKey(key);
+                empresaTipoPago.put("monto_nacional", value.optDouble("monto_nacional"));
+                empresaTipoPago.put("monto_extranjera", value.optDouble("monto_extranjera"));
+
+                value.put("empresa_tipo_pago", empresaTipoPago);
+
+                double tipo_cambio = value.optDouble("monto_nacional")
+                        / value.optDouble("monto_extranjera", value.optDouble("monto_nacional"));
+                tipo_cambio = Math.round(tipo_cambio * 100.0) / 100.0;
+
+                JSONObject det = new JSONObject();
+                det.put("key", SUtil.uuid());
+                det.put("key_caja", keyCaja);
+                det.put("key_empresa_tipo_pago", empresaTipoPago.getString("key"));
+                det.put("key_tipo_pago", empresaTipoPago.getString("key_tipo_pago"));
+                det.put("monto", value.getDouble("monto_extranjera"));
+                det.put("key_moneda", empresaTipoPago.getString("key_moneda"));
+                det.put("tipo_cambio", tipo_cambio);
+                det.put("descripcion", data.optString("descripcion"));
+                det.put("tipo", "venta");
+                det.put("fecha", SUtil.now());
+                det.put("fecha_on", SUtil.now());
+                det.put("estado", 1);
+                det.put("key_usuario", data.getString("key_usuario"));
+                det.put("key_compra_venta", key_compra_venta);
+                // det.put("key_comprobante", key_comprobante);
+                // det.put("codigo_comprobante", codigo_comprobante);
+                // det.put("data", info);
+
+                cajaDetalle.put(det);
+            }
+
+            caja.put("detalle", cajaDetalle);
+
+            data.put("key_compra_venta", key_compra_venta);
+
+            JSONObject send = new JSONObject();
+            send.put("component", "compra_venta");
+            send.put("type", "ventaCaja");
+            send.put("data", data);
+
+            JSONObject response = SocketCliente.sendSinc("compra_venta", send);
+            // System.out.println(response);
+
+            if (!response.getString("estado").equals("exito")) {
+                throw new Exception(response.optString("error", "Error al registrar la compra"));
+            }
+
+            data = response.getJSONObject("data");
+
+            JSONObject asientoContable = data.getJSONObject("asiento_contable");
+
+            for (int i = 0; i < cajaDetalle.length(); i++) {
+                JSONObject det = cajaDetalle.getJSONObject(i);
+                det.put("key_comprobante", asientoContable.getString("key"));
+                det.put("codigo_comprobante", asientoContable.getString("codigo"));
+            }
+
+            conectInstance.insertArray(COMPONENT, cajaDetalle);
+
+            conectInstance.commit();
+        } catch (Exception e) {
+            e.printStackTrace();
+            obj.put("estado", "error");
+            obj.put("error", e.getMessage());
+            conectInstance.rollback();
+        } finally {
+            if (conectInstance != null) {
+                conectInstance.close();
+            }
+        }
+    }
 
     public static void getAll(JSONObject obj, SSSessionAbstract session) {
         try {
