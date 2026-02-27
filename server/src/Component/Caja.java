@@ -9,6 +9,7 @@ import Contabilidad.Contabilidad;
 import Servisofts.SPGConect;
 import Servisofts.SUtil;
 import Servisofts.Server.SSSAbstract.SSSessionAbstract;
+import Servisofts.SocketCliente.SocketCliente;
 import Util.ConectInstance;
 
 public class Caja {
@@ -291,22 +292,51 @@ public class Caja {
 
     public static void getAutomatica(JSONObject obj, SSSessionAbstract session) {
         try {
-            String key_sucursal = obj.getString("key_sucursal");
-            // JSONObject data = obj.getJSONObject("data");
+            String key_punto_venta = obj.getString("key_punto_venta");
+            JSONObject cajas = getByKeyPuntoVenta(key_punto_venta);
 
-            // if (obj.has("action") && obj.getString("action").equals("cerrar")) {
-            //     Contabilidad.caja_cierre(obj);
-            // }
+            if (!cajas.isEmpty()) {
+                JSONObject caja = cajas.getJSONObject(cajas.keys().next());
+                if (caja.getInt("estado") == 1) {
+                    obj.put("estado", "exito");
+                    obj.put("data", caja);
+                    return;
+                }
+            }
 
-            // if (obj.optString("estado").equals("error")) {
-            //     return;
-            // }
-            // Notificar.send("💻 Cerraste una caja", "Monto de cierre Bs. ", data,
-            // obj.getJSONObject("servicio").getString("key"),
-            // obj.getString("key_usuario"));
+            JSONObject puntoVenta = getPuntoVentaByKey(key_punto_venta);
 
-            // SPGConect.editObject(COMPONENT, data);
-            // obj.put("data", data);
+            if (puntoVenta.isEmpty()) {
+                obj.put("estado", "error");
+                obj.put("error", "Punto de venta no encontrado");
+                return;
+            }
+
+            JSONObject sucursal = sucursalGetByKey(puntoVenta.getString("key_sucursal"));
+
+            if (sucursal.isEmpty()) {
+                obj.put("estado", "error");
+                obj.put("error", "Sucursal no encontrada");
+                return;
+            }
+            JSONObject objSend = new JSONObject();
+            objSend.put("servicio", obj.optJSONObject("servicio"));
+            objSend.put("key_usuario", "");
+            JSONObject data = new JSONObject();
+            data.put("key_punto_venta", key_punto_venta);
+            data.put("key_sucursal", sucursal.getString("key"));
+            data.put("key_empresa", sucursal.getString("key_empresa"));
+            data.put("fecha", SUtil.now().substring(0, 10));
+            data.put("fraccionar_moneda", false);
+            objSend.put("data", data);
+
+            registro(objSend, session);
+
+            System.out.println(objSend.toString());
+
+            // debo abrir una casa
+
+            obj.put("data", objSend.getJSONObject("data"));
             obj.put("estado", "exito");
 
         } catch (Exception e) {
@@ -316,4 +346,21 @@ public class Caja {
         }
     }
 
+    public static JSONObject getPuntoVentaByKey(String key_punto_venta) {
+        JSONObject send = new JSONObject();
+        send.put("component", "punto_venta");
+        send.put("type", "getByKey");
+        send.put("key", key_punto_venta);
+        JSONObject resp = SocketCliente.sendSinc("empresa", send);
+        return resp.getJSONObject("data");
+    }
+
+    public static JSONObject sucursalGetByKey(String key_sucursal) {
+        JSONObject send = new JSONObject();
+        send.put("component", "sucursal");
+        send.put("type", "getByKey");
+        send.put("key", key_sucursal);
+        JSONObject resp = SocketCliente.sendSinc("empresa", send);
+        return resp.getJSONObject("data");
+    }
 }
