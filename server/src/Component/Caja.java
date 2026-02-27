@@ -46,25 +46,31 @@ public class Caja {
             case "reporteCuentas":
                 reporteCuentas(obj, session);
                 break;
+            case "getAutomatica":
+                getAutomatica(obj, session);
+                break;
 
         }
     }
 
     public static void getAllCajasByEmpresa(JSONObject obj, SSSessionAbstract session) {
         try {
-            String consulta = "select _getAllCajasByEmpresa('" + obj.getString("key_empresa") + "','" + obj.getString("fecha_inicio") + "','" + obj.getString("fecha_fin") + "') as json";
+            String consulta = "select _getAllCajasByEmpresa('" + obj.getString("key_empresa") + "','"
+                    + obj.getString("fecha_inicio") + "','" + obj.getString("fecha_fin") + "') as json";
             JSONObject data = SPGConect.ejecutarConsultaObject(consulta);
             obj.put("data", data);
             obj.put("estado", "exito");
         } catch (Exception e) {
             obj.put("estado", "error");
-            obj.put("error", e.getMessage());
+
             e.printStackTrace();
         }
     }
+
     public static void getAllMovimientosCajasByEmpresa(JSONObject obj, SSSessionAbstract session) {
         try {
-            String consulta = "select _getallmovimientoscajasbyempresa('" + obj.getString("key_empresa") + "','" + obj.getString("fecha_inicio") + "','" + obj.getString("fecha_fin") + "') as json";
+            String consulta = "select _getallmovimientoscajasbyempresa('" + obj.getString("key_empresa") + "','"
+                    + obj.getString("fecha_inicio") + "','" + obj.getString("fecha_fin") + "') as json";
             JSONObject data = SPGConect.ejecutarConsultaObject(consulta);
             obj.put("data", data);
             obj.put("estado", "exito");
@@ -274,6 +280,33 @@ public class Caja {
 
             SPGConect.editObject(COMPONENT, data);
             obj.put("data", data);
+            obj.put("estado", "exito");
+
+        } catch (Exception e) {
+            obj.put("estado", "error");
+            obj.put("error", e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    public static void getAutomatica(JSONObject obj, SSSessionAbstract session) {
+        try {
+            String key_sucursal = obj.getString("key_sucursal");
+            // JSONObject data = obj.getJSONObject("data");
+
+            // if (obj.has("action") && obj.getString("action").equals("cerrar")) {
+            //     Contabilidad.caja_cierre(obj);
+            // }
+
+            // if (obj.optString("estado").equals("error")) {
+            //     return;
+            // }
+            // Notificar.send("💻 Cerraste una caja", "Monto de cierre Bs. ", data,
+            // obj.getJSONObject("servicio").getString("key"),
+            // obj.getString("key_usuario"));
+
+            // SPGConect.editObject(COMPONENT, data);
+            // obj.put("data", data);
             obj.put("estado", "exito");
 
         } catch (Exception e) {
