@@ -24,6 +24,7 @@ public class Manejador {
             case Pasarela.COMPONENT: new Pasarela(obj, session); break;
             case PasarelaEmpresa.COMPONENT: new PasarelaEmpresa(obj, session); break;
             case Recurrente.COMPONENT: new Recurrente(obj, session); break;
+            case Cotizacion.COMPONENT: new Cotizacion(obj, session); break;
         }
     }
 }

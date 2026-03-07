@@ -493,6 +493,7 @@ public class CajaDetalle {
             data.put("caja", caja);
 
             String key_compra_venta = SUtil.uuid();
+            boolean pasarela = false;
 
             JSONArray cajaDetalle = new JSONArray();
             for (int i = 0; i < JSONObject.getNames(data.getJSONObject("tipos_pago")).length; i++) {
@@ -502,6 +503,10 @@ public class CajaDetalle {
                 JSONObject empresaTipoPago = EmpresaTipoPago.getByKey(key);
                 empresaTipoPago.put("monto_nacional", value.optDouble("monto_nacional"));
                 empresaTipoPago.put("monto_extranjera", value.optDouble("monto_extranjera"));
+
+                if(empresaTipoPago.has("key_pasarela_empresa") && !empresaTipoPago.optString("key_pasarela_empresa").equals("")){
+                    pasarela = true;
+                }
 
                 value.put("empresa_tipo_pago", empresaTipoPago);
 
@@ -529,6 +534,19 @@ public class CajaDetalle {
                 // det.put("data", info);
 
                 cajaDetalle.put(det);
+            }
+
+            if(pasarela){
+                // Enviamos a cotizacion si es que tiene pasarela hasta que se confirme el pago
+                JSONObject cotizacion = new JSONObject();
+                cotizacion.put("key_caja", keyCaja);
+                cotizacion.put("key_empresa", caja.getString("key_empresa"));
+                cotizacion.put("descripcion", "sad");
+                cotizacion.put("observacion", "asdasd");
+                cotizacion.put("data", obj.getJSONObject("data"));
+                Cotizacion.registro(new JSONObject().put("data",cotizacion), session);
+                
+                return ;
             }
 
             caja.put("detalle", cajaDetalle);
