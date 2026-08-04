@@ -5,9 +5,6 @@ import org.json.JSONObject;
 import Component.Caja;
 import Servisofts.SPGConect;
 import Servisofts.SUtil;
-import Servisofts.Contabilidad.AsientoContable;
-import Servisofts.Contabilidad.AsientoContableDetalle;
-import Servisofts.Contabilidad.AsientoContableTipo;
 import Servisofts.SocketCliente.SocketCliente;
 import Util.ConectInstance;
 
@@ -311,79 +308,59 @@ public class Contabilidad {
 
         JSONObject caja = Caja.getByKey(caja_detalle.getString("key_caja"));
 
-        String keyTipoPago = obj.getJSONObject("data").getString("key_tipo_pago");
-        String keyMoneda = obj.getJSONObject("data").optString("key_moneda", null);
+        String keyMoneda = obj.getJSONObject("data").isNull("key_moneda") ? null : obj.getJSONObject("data").optString("key_moneda", null);
 
         JSONObject moneda;
-        if (keyMoneda == null) {
+        if (keyMoneda == null || keyMoneda.isEmpty()) {
             moneda = Contabilidad.getMonedaBase(caja.getString("key_empresa"));
             keyMoneda = moneda.getString("key");
         } else {
             moneda = Contabilidad.getMoneda(caja.getString("key_empresa"), keyMoneda);
         }
 
-        JSONObject tipoPago = Contabilidad.getTipoPago(keyTipoPago);
+        JSONObject send = new JSONObject();
+        send.put("component", "asiento_contable");
+        send.put("type", "set");
+        send.put("key_usuario", obj.getString("key_usuario"));
+        send.put("key_empresa", obj.getString("key_empresa"));
 
-        if (!tipoPago.optBoolean("pasa_por_caja", false)) {
-            throw new Exception("El tipo de pago no pasa por caja");
-        }
+        JSONObject comprobante = new JSONObject();
+        comprobante.put("tipo", "ingreso");
+        comprobante.put("fecha", caja_detalle.getString("fecha"));
+        comprobante.put("descripcion", "Caja ingreso de bancos: " + caja_detalle.getString("descripcion"));
+        comprobante.put("observacion", caja_detalle.getString("descripcion"));
 
-        JSONObject puntoVentaTipoPago = Contabilidad.puntoVentaTipoPago(caja.getString("key_punto_venta"), keyTipoPago,
-                keyMoneda);
-        // System.out.println(moneda);
-
-
-
-        
-        AsientoContable  asiento = new AsientoContable(AsientoContableTipo.egreso);
-        asiento.descripcion = "Caja ingreso de bancos: " + obj.getJSONObject("data").getString("descripcion");
-        asiento.observacion = obj.getJSONObject("data").getString("descripcion");
-        asiento.key_empresa = obj.getString("key_empresa");
-        asiento.key_usuario = obj.getString("key_usuario");
-
+        double tipo_cambio = moneda.optDouble("tipo_cambio", 1);
+        double monto_me = caja_detalle.getDouble("monto");
+        double monto = monto_me * tipo_cambio;
 
         JSONArray detalle = new JSONArray();
 
-        double tipo_cambio = moneda.optDouble("tipo_cambio", 1);
-        double monto_me = obj.getJSONObject("data").getDouble("monto");
-        double monto = monto_me * tipo_cambio;
+        JSONObject det = new JSONObject();
+        det.put("key_cuenta_contable", caja.getString("key_cuenta_contable"));
+        det.put("glosa", "Caja ingreso de bancos");
+        det.put("debe", monto);
+        detalle.put(det);
 
-        JSONObject tags = new JSONObject()
-                .put("key_usuario", obj.getString("key_usuario"))
-                .put("key_caja", caja.getString("key"))
-                .put("key_punto_venta", caja.getString("key_punto_venta"))
-                .put("key_sucursal", caja.getString("key_sucursal"));
+        det = new JSONObject();
+        det.put("key_cuenta_contable", caja_detalle.getString("key_cuenta_banco"));
+        det.put("glosa", caja_detalle.getString("descripcion"));
+        det.put("haber", monto);
+        detalle.put(det);
 
-        asiento.setDetalle(new AsientoContableDetalle(
-            puntoVentaTipoPago.getString("key_cuenta_contable"),
-            "Caja ingreso de bancos", 
-            "debe", 
-            monto, 
-            monto_me, 
-            tags));
-
-        asiento.setDetalle(new AsientoContableDetalle(
-            caja_detalle.getString("key_cuenta_banco"),
-            obj.getJSONObject("data").getString("descripcion"), 
-            "haber", 
-            monto, 
-            monto_me, 
-            tags));
-
-      
-        asiento.enviar();
-
-        JSONObject data =  asiento.toJSON();
+        comprobante.put("detalle", detalle);
+        send.put("data", comprobante);
+        JSONObject data = SocketCliente.sendSinc("contabilidad", send);
 
         JSONObject caja_detalle_ = new JSONObject();
         caja_detalle_.put("key", caja_detalle.getString("key"));
-        caja_detalle_.put("codigo_comprobante", data.getString("codigo"));
-        caja_detalle_.put("key_comprobante", data.getString("key"));
-        caja_detalle_.put("key_moneda", moneda.optString("key", ""));
-        caja_detalle_.put("tipo_cambio", moneda.optDouble("tipo_cambio", 1));
+        caja_detalle_.put("codigo_comprobante", data.getJSONObject("data").getString("codigo"));
+        caja_detalle_.put("key_comprobante", data.getJSONObject("data").getString("key"));
+        caja_detalle_.put("key_moneda", keyMoneda);
+        caja_detalle_.put("tipo_cambio", tipo_cambio);
 
-        caja_detalle.put("codigo_comprobante", data.getString("codigo"));
-        caja_detalle.put("key_comprobante", data.getString("key"));
+        caja_detalle.put("codigo_comprobante", data.getJSONObject("data").getString("codigo"));
+        caja_detalle.put("key_comprobante", data.getJSONObject("data").getString("key"));
         conectInstance.editObject("caja_detalle", caja_detalle_);
 
     }
