@@ -37,11 +37,8 @@ public class CajaDetalle {
             case "traspaso":
                 traspaso(obj, session);
                 break;
-            case "amortizarCuotaCompra":
+            case "amortizarCuotaCompra": //amortiza compra y venta
                 amortizarCuotaCompra(obj, session);
-                break;
-            case "amortizarCuotaVenta":
-                amortizarCuotaVenta(obj, session);
                 break;
 
             case "anularVenta":
@@ -50,6 +47,85 @@ public class CajaDetalle {
             case "anularCompra":
                 anular(obj, session, "compra");
                 break;
+            case "anularAmortizacion":
+                anularAmortizacion(obj, session);
+                break;
+        }
+    }
+
+    public static void anularAmortizacion(JSONObject obj, SSSessionAbstract session) {
+        ConectInstance conectInstance = null;
+
+        try {
+            conectInstance = new ConectInstance();
+            conectInstance.Transacction();
+
+            JSONObject empresaTipoPago = EmpresaTipoPago.getAll(obj.getString("key_empresa"));
+            obj.put("component", "compra_venta");
+            obj.put("empresa_tipo_pago", empresaTipoPago);
+
+            JSONObject respuesta = SocketCliente.sendSinc("compra_venta", obj);
+
+            if (respuesta.getString("estado").equals("error")) {
+                throw new Exception(respuesta.optString("error", "Error al anular la amortización en compra venta"));
+            }
+
+            JSONObject data = respuesta.getJSONObject("data");
+            String key_caja_detalle = data.getString("key_caja_detalle");
+
+            JSONObject original = CajaDetalle.getByKey(key_caja_detalle);
+            if (original == null || original.isEmpty()) {
+                throw new Exception("No se encontró el movimiento de caja original de esta amortización");
+            }
+
+            String key_caja_original = original.getString("key_caja");
+            JSONObject cajaOriginal = Caja.getByKey(key_caja_original);
+            String key_punto_venta = cajaOriginal.optString("key_punto_venta");
+
+            // La reversión se registra en la caja actualmente ABIERTA de ese punto de venta,
+            // no necesariamente en la misma caja (ya cerrada) donde se hizo la amortización.
+            JSONObject cajasPuntoVenta = Caja.getByKeyPuntoVenta(key_punto_venta);
+            JSONObject cajaDestino = null;
+            if (cajasPuntoVenta != null && !cajasPuntoVenta.isEmpty()) {
+                for (String k : JSONObject.getNames(cajasPuntoVenta)) {
+                    JSONObject c = cajasPuntoVenta.getJSONObject(k);
+                    if (c.optInt("estado", 0) == 1) {
+                        cajaDestino = c;
+                        break;
+                    }
+                }
+            }
+            if (cajaDestino == null) {
+                throw new Exception("No hay una caja abierta para el punto de venta de la amortización original");
+            }
+
+            JSONObject reversion = new JSONObject(original.toString());
+            reversion.put("key", SUtil.uuid());
+            reversion.put("key_caja", cajaDestino.getString("key"));
+            reversion.put("monto", original.getDouble("monto") * -1);
+            reversion.put("descripcion", "ANULACION: " + original.optString("descripcion"));
+            reversion.put("tipo", "reversion_amortizacion");
+            reversion.put("fecha_on", SUtil.now());
+            reversion.put("fecha", SUtil.now());
+            reversion.put("estado", 1);
+            reversion.put("key_usuario", obj.getString("key_usuario"));
+
+            conectInstance.insertArray(COMPONENT, new JSONArray().put(reversion));
+
+            obj.put("data", data);
+            obj.put("estado", "exito");
+            conectInstance.commit();
+        } catch (Exception e) {
+            e.printStackTrace();
+            obj.put("estado", "error");
+            obj.put("error", e.getMessage());
+            if (conectInstance != null) {
+                conectInstance.rollback();
+            }
+        } finally {
+            if (conectInstance != null) {
+                conectInstance.close();
+            }
         }
     }
 
@@ -271,6 +347,9 @@ public class CajaDetalle {
                 det.put("fecha_on", SUtil.now());
                 det.put("estado", 1);
                 det.put("key_usuario", key_usuario);
+
+                // Enlaza esta amortización con su caja_detalle para poder revertirla luego (Anular Amortización)
+                value.put("key_caja_detalle", det.getString("key"));
 
                 cajaDetalle.put(det);
             }
