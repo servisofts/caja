@@ -512,6 +512,7 @@ public class CajaDetalle {
                 // det.put("key_comprobante", key_comprobante);
                 // det.put("codigo_comprobante", codigo_comprobante);
                 // det.put("data", info);
+                value.put("key_caja_detalle", det.getString("key"));
                 cajaDetalle.put(det);
             }
 
@@ -612,6 +613,7 @@ public class CajaDetalle {
                 // det.put("key_comprobante", key_comprobante);
                 // det.put("codigo_comprobante", codigo_comprobante);
                 // det.put("data", info);
+                value.put("key_caja_detalle", det.getString("key"));
 
                 cajaDetalle.put(det);
             }
