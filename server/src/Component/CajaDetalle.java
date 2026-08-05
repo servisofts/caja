@@ -39,7 +39,6 @@ public class CajaDetalle {
             case "amortizarCuotaCompra": // amortiza compra y venta
                 amortizarCuotaCompra(obj, session);
                 break;
-
             case "anularVenta":
                 anular(obj, session, "venta");
                 break;
