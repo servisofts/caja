@@ -104,7 +104,7 @@ public class CajaDetalle {
             reversion.put("key_caja", cajaDestino.getString("key"));
             reversion.put("monto", original.getDouble("monto") * -1);
             reversion.put("descripcion", "ANULACION: " + original.optString("descripcion"));
-            reversion.put("tipo", "reversion_amortizacion");
+            reversion.put("tipo", "amortizacion_anulada");
             reversion.put("fecha_on", SUtil.now());
             reversion.put("fecha", SUtil.now());
             reversion.put("estado", 1);
@@ -309,6 +309,7 @@ public class CajaDetalle {
             JSONObject data = obj.getJSONObject("data");
             JSONObject tiposPago = data.getJSONObject("tipos_pago");
             JSONArray cuotas = data.optJSONArray("cuotas");
+            String tipo = data.optString("tipo", "compra"); // "compra" o "venta"
 
             System.out.println("cuotas: " + cuotas);
             System.out.println("tipos_pago: " + tiposPago);
@@ -338,11 +339,11 @@ public class CajaDetalle {
                 det.put("monto", value.getDouble("monto_extranjera"));
                 det.put("key_moneda", empresaTipoPago.getString("key_moneda"));
                 det.put("tipo_cambio", tipo_cambio);
-                det.put("descripcion", "Amortización de cuota de compra");
+                det.put("descripcion", tipo.equals("venta") ? "Amortización de cuota de venta" : "Amortización de cuota de compra");
                 // det.put("descripcion", obj.optString("descripcion"));
                 // det.put("descripcion", data.optString("descripcion"));
 
-                det.put("tipo", "amortizacion_compra");
+                det.put("tipo", tipo.equals("venta") ? "amortizacion_venta" : "amortizacion_compra");
                 det.put("fecha", SUtil.now());
                 det.put("fecha_on", SUtil.now());
                 det.put("estado", 1);
