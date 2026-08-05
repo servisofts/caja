@@ -4,12 +4,11 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import Contabilidad.Contabilidad;
-import Servisofts.SPG;
 import Servisofts.SPGConect;
 import Servisofts.SUtil;
+import Servisofts.Server.SSSAbstract.SSSessionAbstract;
 import Servisofts.SocketCliente.SocketCliente;
 import Util.ConectInstance;
-import Servisofts.Server.SSSAbstract.SSSessionAbstract;
 
 public class CajaDetalle {
     public static final String COMPONENT = "caja_detalle";
@@ -37,7 +36,7 @@ public class CajaDetalle {
             case "traspaso":
                 traspaso(obj, session);
                 break;
-            case "amortizarCuotaCompra": //amortiza compra y venta
+            case "amortizarCuotaCompra": // amortiza compra y venta
                 amortizarCuotaCompra(obj, session);
                 break;
 
@@ -82,8 +81,10 @@ public class CajaDetalle {
             JSONObject cajaOriginal = Caja.getByKey(key_caja_original);
             String key_punto_venta = cajaOriginal.optString("key_punto_venta");
 
-            // La reversión se registra en la caja actualmente ABIERTA de ese punto de venta,
-            // no necesariamente en la misma caja (ya cerrada) donde se hizo la amortización.
+            // La reversión se registra en la caja actualmente ABIERTA de ese punto de
+            // venta,
+            // no necesariamente en la misma caja (ya cerrada) donde se hizo la
+            // amortización.
             JSONObject cajasPuntoVenta = Caja.getByKeyPuntoVenta(key_punto_venta);
             JSONObject cajaDestino = null;
             if (cajasPuntoVenta != null && !cajasPuntoVenta.isEmpty()) {
@@ -151,7 +152,8 @@ public class CajaDetalle {
             JSONObject cajaOriginal = Caja.getByKey(key_caja_original);
             String key_punto_venta = cajaOriginal.optString("key_punto_venta");
 
-            // La reversión se registra en la caja actualmente ABIERTA de ese punto de venta,
+            // La reversión se registra en la caja actualmente ABIERTA de ese punto de
+            // venta,
             // no necesariamente en la misma caja (ya cerrada) donde se hizo la venta.
             JSONObject cajasPuntoVenta = Caja.getByKeyPuntoVenta(key_punto_venta);
             JSONObject cajaDestino = null;
@@ -176,16 +178,11 @@ public class CajaDetalle {
             obj.put("component", "compra_venta");
             obj.put("empresa_tipo_pago", empresaTipoPago);
 
-            // System.out.println("Anulando " + tipo + " con data: " + obj);
             JSONObject data = SocketCliente.sendSinc("compra_venta", obj);
-            System.out.println("Respuesta de anulación de " + tipo + ": " + data);
 
             if (data.getString("estado").equals("error")) {
                 throw new Exception(data.optString("error", "Error al anular la " + tipo + " en compra venta"));
             }
-
-            System.out.println("printtt");
-            System.out.println("");
 
             if (detalles != null && !detalles.isEmpty()) {
                 for (int i = 0; i < JSONObject.getNames(detalles).length; i++) {
@@ -204,82 +201,6 @@ public class CajaDetalle {
             }
 
             obj.put("estado", "exito");
-            // System.out.println("Anulación de " + tipo + " exitosa: " + key_compra_venta);
-            conectInstance.commit();
-        } catch (Exception e) {
-            e.printStackTrace();
-            // System.out.println("Error al anular la " + tipo + ": " + e.getMessage());
-            obj.put("estado", "error");
-            obj.put("error", e.getMessage());
-            conectInstance.rollback();
-        } finally {
-            if (conectInstance != null) {
-                conectInstance.close();
-            }
-        }
-    }
-
-    public static void amortizarCuotaComprass(JSONObject obj, SSSessionAbstract session) {
-        ConectInstance conectInstance = null;
-        System.out.println("eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" + obj);
-
-        try {
-
-            conectInstance = new ConectInstance();
-            conectInstance.Transacction();
-
-            String key_empresa = obj.getString("key_empresa");
-            String key_caja = obj.getString("key_caja");
-            String key_usuario = obj.getString("key_usuario");
-            JSONArray cuotas = obj.optJSONArray("cuotas");
-
-            JSONObject tiposPago = obj.getJSONObject("tipos_pago");
-            System.out.println("eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee tipos_pago: " + tiposPago);
-
-            JSONArray cajaDetalle = new JSONArray();
-            for (int i = 0; i < JSONObject.getNames(obj.getJSONObject("tipos_pago")).length; i++) {
-                String key = JSONObject.getNames(obj.getJSONObject("tipos_pago"))[i];
-                JSONObject value = obj.getJSONObject("tipos_pago").getJSONObject(key);
-                JSONObject empresaTipoPago = EmpresaTipoPago.getByKey(key);
-                empresaTipoPago.put("monto_nacional", value.optDouble("monto_nacional"));
-                empresaTipoPago.put("monto_extranjera", value.optDouble("monto_extranjera"));
-
-                double tipo_cambio = value.optDouble("monto_nacional")
-                        / value.optDouble("monto_extranjera", value.optDouble("monto_nacional"));
-                tipo_cambio = Math.round(tipo_cambio * 100.0) / 100.0;
-
-                JSONObject det = new JSONObject();
-                det.put("key", SUtil.uuid());
-                det.put("key_caja", key_caja);
-                det.put("key_empresa_tipo_pago", empresaTipoPago.getString("key"));
-                det.put("key_tipo_pago", empresaTipoPago.getString("key_tipo_pago"));
-                det.put("monto", value.getDouble("monto_extranjera"));
-                det.put("key_moneda", empresaTipoPago.getString("key_moneda"));
-                det.put("tipo_cambio", tipo_cambio);
-                det.put("descripcion", obj.optString("descripcion"));
-                det.put("tipo", "amortizacion_compra");
-                det.put("fecha", SUtil.now());
-                det.put("fecha_on", SUtil.now());
-                det.put("estado", 1);
-                det.put("key_usuario", key_usuario);
-                // det.put("key_comprobante", key_comprobante);
-                // det.put("codigo_comprobante", codigo_comprobante);
-                // det.put("data", info);
-
-                cajaDetalle.put(det);
-
-            }
-
-            obj.put("component", "compra_venta");
-            JSONObject response = SocketCliente.sendSinc("compra_venta", obj);
-            // System.out.println(response);
-
-            if (!response.getString("estado").equals("exito")) {
-                throw new Exception(response.optString("error", "Error al registrar la compra"));
-            }
-
-            // conectInstance.insertArray("caja_detalle", cajaDetalle);
-
             conectInstance.commit();
         } catch (Exception e) {
             e.printStackTrace();
@@ -301,19 +222,12 @@ public class CajaDetalle {
             conectInstance = new ConectInstance();
             conectInstance.Transacction();
 
-            String key_empresa = obj.getString("key_empresa");
             String key_caja = obj.getString("key_caja");
             String key_usuario = obj.getString("key_usuario");
 
-            // 🚀 CORRECCIÓN AQUÍ
             JSONObject data = obj.getJSONObject("data");
             JSONObject tiposPago = data.getJSONObject("tipos_pago");
-            JSONArray cuotas = data.optJSONArray("cuotas");
             String tipo = data.optString("tipo", "compra"); // "compra" o "venta"
-
-            System.out.println("cuotas: " + cuotas);
-            System.out.println("tipos_pago: " + tiposPago);
-            System.out.println("aaaaaaaaaas: " + obj);
 
             JSONArray cajaDetalle = new JSONArray();
 
@@ -339,32 +253,22 @@ public class CajaDetalle {
                 det.put("monto", value.getDouble("monto_extranjera"));
                 det.put("key_moneda", empresaTipoPago.getString("key_moneda"));
                 det.put("tipo_cambio", tipo_cambio);
-                det.put("descripcion", tipo.equals("venta") ? "Amortización de cuota de venta" : "Amortización de cuota de compra");
-                // det.put("descripcion", obj.optString("descripcion"));
-                // det.put("descripcion", data.optString("descripcion"));
-
+                det.put("descripcion",
+                        tipo.equals("venta") ? "Amortización de cuota de venta" : "Amortización de cuota de compra");
                 det.put("tipo", tipo.equals("venta") ? "amortizacion_venta" : "amortizacion_compra");
                 det.put("fecha", SUtil.now());
                 det.put("fecha_on", SUtil.now());
                 det.put("estado", 1);
                 det.put("key_usuario", key_usuario);
 
-                // Enlaza esta amortización con su caja_detalle para poder revertirla luego (Anular Amortización)
+                // Enlaza esta amortización con su caja_detalle para poder revertirla luego
+                // (Anular Amortización)
                 value.put("key_caja_detalle", det.getString("key"));
 
                 cajaDetalle.put(det);
             }
 
             conectInstance.insertArray("caja_detalle", cajaDetalle);
-
-            // obj.put("data",
-            // new JSONObject().put("cajaDetalle", cajaDetalle).put("tiposPago",
-            // tiposPago).put("cuotas", cuotas));
-
-            // obj.put("data", cajaDetalle.getJSONObject(0).put("tipos_pago",
-            // tiposPago).put("cuotas", cuotas));
-
-            System.out.println("obj: " + obj);
 
             obj.put("component", "compra_venta");
             JSONObject response = SocketCliente.sendSinc("compra_venta", obj);
@@ -387,7 +291,7 @@ public class CajaDetalle {
             }
         }
     }
- 
+
     public static void traspaso(JSONObject obj, SSSessionAbstract session) {
         ConectInstance conectInstance = null;
         try {
@@ -422,9 +326,6 @@ public class CajaDetalle {
             detalle1.put("fecha_on", SUtil.now());
             detalle1.put("estado", 1);
             detalle1.put("key_usuario", data.getString("key_usuario"));
-            // detalle1.put("key_comprobante", key_comprobante);
-            // det.put("codigo_comprobante", codigo_comprobante);
-            // det.put("data", info);
             JSONObject detalle2 = new JSONObject();
             detalle2.put("key", SUtil.uuid());
             detalle2.put("key_caja", keyCaja);
@@ -486,7 +387,6 @@ public class CajaDetalle {
             for (int i = 0; i < JSONObject.getNames(data.getJSONObject("tipos_pago")).length; i++) {
                 String key = JSONObject.getNames(data.getJSONObject("tipos_pago"))[i];
                 JSONObject value = data.getJSONObject("tipos_pago").getJSONObject(key);
-                // System.out.println(value);
                 JSONObject empresaTipoPago = EmpresaTipoPago.getByKey(key);
                 empresaTipoPago.put("monto_nacional", value.optDouble("monto_nacional"));
                 empresaTipoPago.put("monto_extranjera", value.optDouble("monto_extranjera"));
@@ -510,14 +410,10 @@ public class CajaDetalle {
                 det.put("estado", 1);
                 det.put("key_usuario", data.getString("key_usuario"));
                 det.put("key_compra_venta", key_compra_venta);
-                // det.put("key_comprobante", key_comprobante);
-                // det.put("codigo_comprobante", codigo_comprobante);
-                // det.put("data", info);
                 value.put("key_caja_detalle", det.getString("key"));
                 cajaDetalle.put(det);
             }
 
-            System.out.println(cajaDetalle);
             caja.put("detalle", cajaDetalle);
             data.put("key_compra_venta", key_compra_venta);
             JSONObject send = new JSONObject();
@@ -525,30 +421,17 @@ public class CajaDetalle {
             send.put("type", "compraCaja");
             send.put("data", data);
             JSONObject response = SocketCliente.sendSinc("compra_venta", send);
-            System.out.println("******************************");
-            System.out.println(response);
             if (response.getString("estado").equals("error")) {
                 throw new Exception(response.optString("error", "Error al registrar la compra"));
             }
             data = response.getJSONObject("data");
-            System.out.println("******************************");
-            System.out.println("******************************");
-            System.out.println(data);
 
             JSONObject asientoContable = data.getJSONObject("asiento_contable");
-            System.out.println("******************************");
-            System.out.println("******************************");
-            System.out.println(asientoContable);
             for (int i = 0; i < cajaDetalle.length(); i++) {
                 JSONObject det = cajaDetalle.getJSONObject(i);
                 det.put("key_comprobante", asientoContable.getString("key"));
                 det.put("codigo_comprobante", asientoContable.getString("codigo"));
             }
-            System.out.println("******************************");
-            System.out.println("******************************");
-            System.out.println("******************************");
-
-            System.out.println(cajaDetalle);
 
             conectInstance.insertArray(COMPONENT, cajaDetalle);
             conectInstance.commit();
@@ -603,7 +486,6 @@ public class CajaDetalle {
                 det.put("monto", value.getDouble("monto_extranjera"));
                 det.put("key_moneda", empresaTipoPago.getString("key_moneda"));
                 det.put("tipo_cambio", tipo_cambio);
-                // det.put("descripcion", data.optString("descripcion"));
                 det.put("descripcion", value.optString("referencia"));
                 det.put("tipo", "venta");
                 det.put("fecha", SUtil.now());
@@ -611,9 +493,6 @@ public class CajaDetalle {
                 det.put("estado", 1);
                 det.put("key_usuario", data.getString("key_usuario"));
                 det.put("key_compra_venta", key_compra_venta);
-                // det.put("key_comprobante", key_comprobante);
-                // det.put("codigo_comprobante", codigo_comprobante);
-                // det.put("data", info);
                 value.put("key_caja_detalle", det.getString("key"));
 
                 cajaDetalle.put(det);
@@ -642,7 +521,6 @@ public class CajaDetalle {
             send.put("data", data);
 
             JSONObject response = SocketCliente.sendSinc("compra_venta", send);
-            // System.out.println(response);
 
             if (!response.getString("estado").equals("exito")) {
                 throw new Exception(response.optString("error", "Error al registrar la compra"));
@@ -676,11 +554,9 @@ public class CajaDetalle {
     public static void venta2(JSONObject obj) {
         ConectInstance conectInstance = null;
         try {
-
             conectInstance = new ConectInstance();
             conectInstance.Transacction();
 
-            // Inicio
             JSONObject data = obj.getJSONObject("data");
             String keyCaja = data.getString("key_caja");
 
@@ -722,9 +598,6 @@ public class CajaDetalle {
                 det.put("estado", 1);
                 det.put("key_usuario", data.getString("key_usuario"));
                 det.put("key_compra_venta", key_compra_venta);
-                // det.put("key_comprobante", key_comprobante);
-                // det.put("codigo_comprobante", codigo_comprobante);
-                // det.put("data", info);
                 cajaDetalle.put(det);
             }
             caja.put("detalle", cajaDetalle);
@@ -735,7 +608,6 @@ public class CajaDetalle {
             send.put("data", data);
 
             JSONObject response = SocketCliente.sendSinc("compra_venta", send);
-            // System.out.println(response);
 
             if (!response.getString("estado").equals("exito")) {
                 throw new Exception(response.optString("error", "Error al registrar la compra"));
@@ -915,16 +787,11 @@ public class CajaDetalle {
                 case "ingreso_efectivo":
                     Contabilidad.ingreso_efectivo(obj);
                     break;
-                // case "amortizacion": Contabilidad.amortizacion(obj); break;
                 case "ingreso_banco":
                     Contabilidad.ingreso_banco(obj, conectInstance);
                     break;
                 case "egreso_banco":
-                    // obj.getJSONObject("data").put("monto",
-                    // obj.getJSONObject("dat|a").getDouble("monto")*-1);
                     Contabilidad.egreso_banco(obj, conectInstance);
-                    // obj.getJSONObject("data").put("monto",
-                    // obj.getJSONObject("data").getDouble("monto")*-1);
                     break;
                 case "egreso_efectivo":
                     obj.getJSONObject("data").put("monto", obj.getJSONObject("data").getDouble("monto") * -1);

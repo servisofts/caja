@@ -3,8 +3,6 @@ package Component;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import com.google.gson.JsonObject;
-
 import Contabilidad.Contabilidad;
 import Servisofts.SPGConect;
 import Servisofts.SUtil;
@@ -160,19 +158,6 @@ public class Caja {
         }
     }
 
-    public static void getPuntosVenta(JSONObject obj, SSSessionAbstract session) {
-        try {
-            String consulta = "select get_abiertas('" + obj.getJSONObject("servicio").getString("key") + "') as json";
-            JSONObject data = SPGConect.ejecutarConsultaObject(consulta);
-            obj.put("data", data);
-            obj.put("estado", "exito");
-        } catch (Exception e) {
-            obj.put("estado", "error");
-            obj.put("error", e.getMessage());
-            e.printStackTrace();
-        }
-    }
-
     public static void getByKey(JSONObject obj, SSSessionAbstract session) {
         try {
             String consulta = "select get_by_key('" + COMPONENT + "','" + obj.getString("key") + "') as json";
@@ -275,10 +260,6 @@ public class Caja {
             if (obj.optString("estado").equals("error")) {
                 return;
             }
-            // Notificar.send("💻 Cerraste una caja", "Monto de cierre Bs. ", data,
-            // obj.getJSONObject("servicio").getString("key"),
-            // obj.getString("key_usuario"));
-
             SPGConect.editObject(COMPONENT, data);
             obj.put("data", data);
             obj.put("estado", "exito");
@@ -331,10 +312,6 @@ public class Caja {
             objSend.put("data", data);
 
             registro(objSend, session);
-
-            System.out.println(objSend.toString());
-
-            // debo abrir una casa
 
             obj.put("data", objSend.getJSONObject("data"));
             obj.put("estado", "exito");
