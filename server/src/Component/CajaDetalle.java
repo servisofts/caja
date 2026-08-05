@@ -100,8 +100,11 @@ public class CajaDetalle {
                 throw new Exception("No hay una caja abierta para el punto de venta de la amortización original");
             }
 
+            JSONObject asientoContable = data.optJSONObject("asiento_contable");
+
             JSONObject reversion = new JSONObject(original.toString());
             reversion.put("key", SUtil.uuid());
+            reversion.put("key_caja_detalle_original", key_caja_detalle);
             reversion.put("key_caja", cajaDestino.getString("key"));
             reversion.put("monto", original.getDouble("monto") * -1);
             reversion.put("descripcion", "ANULACION: " + original.optString("descripcion"));
@@ -110,6 +113,11 @@ public class CajaDetalle {
             reversion.put("fecha", SUtil.now());
             reversion.put("estado", 1);
             reversion.put("key_usuario", obj.getString("key_usuario"));
+            // La reversión tiene su PROPIO asiento contable (distinto al de la amortización original que hereda de "original").
+            if (asientoContable != null) {
+                reversion.put("key_comprobante", asientoContable.getString("key"));
+                reversion.put("codigo_comprobante", asientoContable.getString("codigo"));
+            }
 
             conectInstance.insertArray(COMPONENT, new JSONArray().put(reversion));
 
@@ -268,14 +276,25 @@ public class CajaDetalle {
                 cajaDetalle.put(det);
             }
 
-            conectInstance.insertArray("caja_detalle", cajaDetalle);
-
             obj.put("component", "compra_venta");
             JSONObject response = SocketCliente.sendSinc("compra_venta", obj);
 
             if (!response.getString("estado").equals("exito")) {
                 throw new Exception(response.optString("error", "Error al registrar la compra"));
             }
+
+            JSONObject asientoContable = response.optJSONObject("data") != null
+                    ? response.getJSONObject("data").optJSONObject("asiento_contable")
+                    : null;
+            if (asientoContable != null) {
+                for (int i = 0; i < cajaDetalle.length(); i++) {
+                    JSONObject det = cajaDetalle.getJSONObject(i);
+                    det.put("key_comprobante", asientoContable.getString("key"));
+                    det.put("codigo_comprobante", asientoContable.getString("codigo"));
+                }
+            }
+
+            conectInstance.insertArray("caja_detalle", cajaDetalle);
 
             obj.put("estado", "exito");
             conectInstance.commit();
