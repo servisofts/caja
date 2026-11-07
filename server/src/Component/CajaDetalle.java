@@ -602,7 +602,8 @@ public class CajaDetalle {
                         if (pago == null || pago.optString("key").isEmpty()) {
                             throw new Exception("Falta el pago con tarjeta aprobado para \"" + empresaTipoPago.optString("descripcion") + "\"");
                         }
-                        tarjetas.put(new JSONObject().put("key", pago.getString("key")).put("monto", value.getDouble("monto_nacional")));
+                        // Monto en la moneda del tipo de pago (BOB, la del cobro en Cybersource), no en la moneda base de la empresa.
+                        tarjetas.put(new JSONObject().put("key", pago.getString("key")).put("monto", value.optDouble("monto_extranjera", value.getDouble("monto_nacional"))));
                     } else {
                         pasarela = true;
                     }
