@@ -598,6 +598,7 @@ public class CajaDetalle {
             String keyCaja = data.getString("key_caja");
             JSONObject caja = Caja.getByKey(keyCaja);
             data.put("caja", caja);
+            exigirVentaEnCaja(data.optJSONArray("detalle"), caja);
             String key_compra_venta = SUtil.uuid();
             boolean pasarela = false;
             keyCompraVentaEnCurso = key_compra_venta;
@@ -764,6 +765,53 @@ public class CajaDetalle {
         }
         if (!"exito".equals(resp.optString("estado"))) throw new Exception(resp.optString("error", "No se pudo verificar el pago con tarjeta"));
         return resp;
+    }
+
+    /** Cache por empresa de los productos que no se venden en caja: {t: ms, data: {key_punto_venta, modelos[]}}. */
+    private static final java.util.Map<String, JSONObject> soloWebCache = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * Productos con "Vender en caja" desmarcado (inventario modelo.venta_caja = false): solo se venden en el punto de
+     * venta de la tienda web. La lista la da serp (/tienda/solo_web); si serp no responde no se bloquea la venta.
+     */
+    private static void exigirVentaEnCaja(JSONArray detalle, JSONObject caja) throws Exception {
+        if (detalle == null || detalle.length() == 0 || caja == null) return;
+        String key_empresa = caja.optString("key_empresa");
+        JSONObject c = soloWebCache.get(key_empresa);
+        if (c == null || System.currentTimeMillis() - c.optLong("t") > 60000) {
+            try {
+                String api = "http://192.168.5.48:30048/rest/tienda/solo_web/";
+                try {
+                    api = Servisofts.SConfig.getJSON().optString("serp_solo_web_api", api);
+                } catch (Exception e) {
+                }
+                java.net.HttpURLConnection con = (java.net.HttpURLConnection) new java.net.URL(api + java.net.URLEncoder.encode(key_empresa, "UTF-8")).openConnection();
+                con.setConnectTimeout(3000);
+                con.setReadTimeout(10000);
+                java.io.ByteArrayOutputStream buf = new java.io.ByteArrayOutputStream();
+                try (java.io.InputStream in = con.getInputStream()) {
+                    in.transferTo(buf);
+                }
+                JSONObject d = new JSONObject(buf.toString("UTF-8"));
+                if (d.has("error")) throw new Exception(d.getString("error"));
+                c = new JSONObject().put("t", System.currentTimeMillis()).put("data", d);
+                soloWebCache.put(key_empresa, c);
+            } catch (Exception e) {
+                e.printStackTrace();
+                if (c == null) return;
+            }
+        }
+        JSONObject d = c.getJSONObject("data");
+        if (d.optString("key_punto_venta").equals(caja.optString("key_punto_venta"))) return;
+        JSONArray modelos = d.optJSONArray("modelos");
+        if (modelos == null || modelos.length() == 0) return;
+        java.util.Set<String> bloqueados = new java.util.HashSet<>();
+        for (int i = 0; i < modelos.length(); i++) bloqueados.add(modelos.optString(i));
+        for (int i = 0; i < detalle.length(); i++) {
+            JSONObject it = detalle.optJSONObject(i);
+            if (it != null && bloqueados.contains(it.optString("key_modelo")))
+                throw new Exception("\"" + it.optString("descripcion", "Producto") + "\" no se vende en caja (solo en la tienda web)");
+        }
     }
 
     public static void venta2(JSONObject obj) {
