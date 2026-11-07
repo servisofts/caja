@@ -60,6 +60,20 @@ public class CajaDetalle {
             conectInstance = new ConectInstance();
             conectInstance.Transacction();
 
+            // Pago de cuota con tarjeta (Cybersource): se devuelve el dinero ANTES de anular, como en anular venta.
+            // Si la devolución falla, no se anula nada.
+            JSONObject pedido = obj.optJSONObject("data");
+            String keyDetallePedido = pedido == null ? "" : pedido.optString("key_caja_detalle", "");
+            if (!keyDetallePedido.isEmpty()) {
+                JSONObject previo = CajaDetalle.getByKey(keyDetallePedido);
+                JSONObject datosPrevio = previo == null ? null : previo.optJSONObject("data");
+                if (datosPrevio != null && !datosPrevio.optString("pago_tarjeta", "").isEmpty()) {
+                    cybersource(new JSONObject().put("component", "link_pago").put("type", "reembolsar")
+                            .put("key", datosPrevio.getString("pago_tarjeta")).put("key_empresa", obj.getString("key_empresa"))
+                            .put("referencia", keyDetallePedido));
+                }
+            }
+
             JSONObject empresaTipoPago = EmpresaTipoPago.getAll(obj.getString("key_empresa"));
             obj.put("component", "compra_venta");
             obj.put("empresa_tipo_pago", empresaTipoPago);
@@ -318,6 +332,8 @@ public class CajaDetalle {
 
     public static void amortizarCuotaCompra(JSONObject obj, SSSessionAbstract session) {
         ConectInstance conectInstance = null;
+        JSONArray consumidos = new JSONArray();
+        String referenciaTarjeta = null;
 
         try {
 
@@ -338,6 +354,7 @@ public class CajaDetalle {
             System.out.println("aaaaaaaaaas: " + obj);
 
             JSONArray cajaDetalle = new JSONArray();
+            JSONArray tarjetas = new JSONArray();
 
             String[] names = JSONObject.getNames(tiposPago);
 
@@ -345,6 +362,14 @@ public class CajaDetalle {
 
                 JSONObject value = tiposPago.getJSONObject(key);
                 JSONObject empresaTipoPago = EmpresaTipoPago.getByKey(key);
+                // Tarjeta (Cybersource): el cobro ya está aprobado (link o cobro automático); se verifica y se marca como usado.
+                JSONObject pagoTarjeta = null;
+                if (!empresaTipoPago.optString("key_pasarela_empresa", "").isEmpty() && esPasarelaCybersource(empresaTipoPago.getString("key_pasarela_empresa"))) {
+                    pagoTarjeta = value.optJSONObject("pago_tarjeta");
+                    if (pagoTarjeta == null || pagoTarjeta.optString("key").isEmpty())
+                        throw new Exception("Falta el pago con tarjeta aprobado para \"" + empresaTipoPago.optString("descripcion") + "\"");
+                    tarjetas.put(new JSONObject().put("key", pagoTarjeta.getString("key")).put("monto", value.optDouble("monto_extranjera", value.getDouble("monto_nacional"))));
+                }
 
                 value.put("key_cuenta_contable", empresaTipoPago.getString("key_cuenta_contable"));
                 value.put("empresa_tipo_pago", empresaTipoPago);
@@ -361,7 +386,8 @@ public class CajaDetalle {
                 det.put("monto", value.getDouble("monto_extranjera"));
                 det.put("key_moneda", empresaTipoPago.getString("key_moneda"));
                 det.put("tipo_cambio", tipo_cambio);
-                det.put("descripcion", "Amortización de cuota de compra");
+                det.put("descripcion", value.optString("referencia", "").isEmpty() ? "Amortización de cuota de compra" : value.getString("referencia"));
+                if (pagoTarjeta != null) det.put("data", new JSONObject().put("pago_tarjeta", pagoTarjeta.getString("key")));
                 // det.put("descripcion", obj.optString("descripcion"));
                 // det.put("descripcion", data.optString("descripcion"));
 
@@ -376,6 +402,16 @@ public class CajaDetalle {
                 value.put("key_caja_detalle", det.getString("key"));
 
                 cajaDetalle.put(det);
+            }
+
+            // Cada cobro con tarjeta queda marcado como usado (misma empresa, aprobado, mismo monto, no usado antes) con la
+            // venta de las cuotas si se conoce (así anular la venta también lo devuelve) o con este movimiento de caja.
+            referenciaTarjeta = data.optString("key_compra_venta", "").isEmpty() ? cajaDetalle.getJSONObject(0).getString("key") : data.getString("key_compra_venta");
+            for (int i = 0; i < tarjetas.length(); i++) {
+                JSONObject tj = tarjetas.getJSONObject(i);
+                cybersource(new JSONObject().put("component", "link_pago").put("type", "consumir").put("key", tj.getString("key"))
+                        .put("key_empresa", key_empresa).put("monto", tj.getDouble("monto")).put("key_compra_venta", referenciaTarjeta));
+                consumidos.put(tj.getString("key"));
             }
 
             conectInstance.insertArray("caja_detalle", cajaDetalle);
@@ -403,7 +439,15 @@ public class CajaDetalle {
             e.printStackTrace();
             obj.put("estado", "error");
             obj.put("error", e.getMessage());
-            conectInstance.rollback();
+            if (conectInstance != null) conectInstance.rollback();
+            for (int i = 0; i < consumidos.length(); i++) {
+                try {
+                    cybersource(new JSONObject().put("component", "link_pago").put("type", "liberar")
+                            .put("key", consumidos.getString(i)).put("key_compra_venta", referenciaTarjeta));
+                } catch (Exception e2) {
+                    e2.printStackTrace();
+                }
+            }
         } finally {
             if (conectInstance != null) {
                 conectInstance.close();
