@@ -172,6 +172,13 @@ public class CajaDetalle {
             }
             String key_caja_destino = cajaDestino.getString("key");
 
+            // Venta pagada con tarjeta (pasarela Cybersource): primero se devuelve el dinero; si Cybersource no lo
+            // acepta, no se anula nada. Reintentar es seguro (los pagos ya devueltos se saltan).
+            if (tipo.equals("venta") && tienePagoConTarjeta(detalles)) {
+                cybersource(new JSONObject().put("component", "link_pago").put("type", "reembolsar_venta")
+                        .put("key_compra_venta", key_compra_venta).put("key_empresa", cajaOriginal.getString("key_empresa")));
+            }
+
             obj.put("caja_detalle", detalles);
             obj.put("key_punto_venta", key_punto_venta);
 
@@ -223,6 +230,16 @@ public class CajaDetalle {
                 conectInstance.close();
             }
         }
+    }
+
+    /** ¿Algún movimiento de la venta se pagó con un tipo de pago de pasarela Cybersource? */
+    private static boolean tienePagoConTarjeta(JSONObject detalles) throws Exception {
+        for (String k : JSONObject.getNames(detalles)) {
+            JSONObject etp = EmpresaTipoPago.getByKey(detalles.getJSONObject(k).optString("key_empresa_tipo_pago"));
+            if (etp != null && !etp.optString("key_pasarela_empresa", "").isEmpty() && esPasarelaCybersource(etp.getString("key_pasarela_empresa")))
+                return true;
+        }
+        return false;
     }
 
     public static void amortizarCuotaComprass(JSONObject obj, SSSessionAbstract session) {
