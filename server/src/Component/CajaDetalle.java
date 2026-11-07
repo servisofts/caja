@@ -571,6 +571,9 @@ public class CajaDetalle {
 
     public static void venta(JSONObject obj, SSSessionAbstract session) {
         ConectInstance conectInstance = null;
+        JSONArray tarjetas = new JSONArray();
+        JSONArray consumidos = new JSONArray();
+        String keyCompraVentaEnCurso = null;
         try {
             conectInstance = new ConectInstance();
             conectInstance.Transacction();
@@ -580,6 +583,7 @@ public class CajaDetalle {
             data.put("caja", caja);
             String key_compra_venta = SUtil.uuid();
             boolean pasarela = false;
+            keyCompraVentaEnCurso = key_compra_venta;
             JSONArray cajaDetalle = new JSONArray();
             for (int i = 0; i < JSONObject.getNames(data.getJSONObject("tipos_pago")).length; i++) {
                 String key = JSONObject.getNames(data.getJSONObject("tipos_pago"))[i];
@@ -591,7 +595,17 @@ public class CajaDetalle {
 
                 if (empresaTipoPago.has("key_pasarela_empresa")
                         && !empresaTipoPago.optString("key_pasarela_empresa").equals("")) {
-                    pasarela = true;
+                    // Tarjeta (Cybersource): el pago ya está aprobado antes de aceptar; se verifica abajo y la venta se
+                    // registra directo. Las demás pasarelas (QR) siguen yendo a cotización hasta confirmar el pago.
+                    if (esPasarelaCybersource(empresaTipoPago.getString("key_pasarela_empresa"))) {
+                        JSONObject pago = value.optJSONObject("pago_tarjeta");
+                        if (pago == null || pago.optString("key").isEmpty()) {
+                            throw new Exception("Falta el pago con tarjeta aprobado para \"" + empresaTipoPago.optString("descripcion") + "\"");
+                        }
+                        tarjetas.put(new JSONObject().put("key", pago.getString("key")).put("monto", value.getDouble("monto_nacional")));
+                    } else {
+                        pasarela = true;
+                    }
                 }
 
                 value.put("empresa_tipo_pago", empresaTipoPago);
@@ -623,6 +637,9 @@ public class CajaDetalle {
                 cajaDetalle.put(det);
             }
 
+            if (pasarela && tarjetas.length() > 0) {
+                throw new Exception("No se puede combinar el pago con tarjeta con otra pasarela (QR) en la misma venta");
+            }
             if (pasarela) {
                 // Enviamos a cotizacion si es que tiene pasarela hasta que se confirme el pago
                 JSONObject cotizacion = new JSONObject();
@@ -634,6 +651,16 @@ public class CajaDetalle {
                 Cotizacion.registro(new JSONObject().put("data", cotizacion), session);
 
                 return;
+            }
+
+            // Cada pago con tarjeta queda marcado en Cybersource como usado por esta venta (aprobado, misma empresa,
+            // mismo monto y no usado antes). Si algo falla después, se libera en el catch.
+            String key_empresa_caja = caja.getString("key_empresa");
+            for (int i = 0; i < tarjetas.length(); i++) {
+                JSONObject t = tarjetas.getJSONObject(i);
+                cybersource(new JSONObject().put("component", "link_pago").put("type", "consumir").put("key", t.getString("key"))
+                        .put("key_empresa", key_empresa_caja).put("monto", t.getDouble("monto")).put("key_compra_venta", key_compra_venta));
+                consumidos.put(t.getString("key"));
             }
 
             caja.put("detalle", cajaDetalle);
@@ -670,11 +697,55 @@ public class CajaDetalle {
             obj.put("estado", "error");
             obj.put("error", e.getMessage());
             conectInstance.rollback();
+            for (int i = 0; i < consumidos.length(); i++) {
+                try {
+                    cybersource(new JSONObject().put("component", "link_pago").put("type", "liberar")
+                            .put("key", consumidos.getString(i)).put("key_compra_venta", keyCompraVentaEnCurso));
+                } catch (Exception e2) {
+                    e2.printStackTrace();
+                }
+            }
         } finally {
             if (conectInstance != null) {
                 conectInstance.close();
             }
         }
+    }
+
+    /** ¿La pasarela_empresa es de tipo "cybersource"? (la key viene de empresa_tipo_pago, no del cliente). */
+    private static boolean esPasarelaCybersource(String key_pasarela_empresa) throws Exception {
+        JSONObject pe = SPGConect.ejecutarConsultaObject("select get_by_key('pasarela_empresa','" + key_pasarela_empresa.replace("'", "") + "') as json");
+        return pe != null && "cybersource".equals(pe.optString("key_pasarela"));
+    }
+
+    /** Llama al microservicio cybersource por la red interna (config "cybersource_api"). Lanza si responde error. */
+    private static JSONObject cybersource(JSONObject req) throws Exception {
+        String api = "http://192.168.5.56:30056/api";
+        try {
+            api = Servisofts.SConfig.getJSON().optString("cybersource_api", api);
+        } catch (Exception e) {
+        }
+        java.net.HttpURLConnection con = (java.net.HttpURLConnection) new java.net.URL(api).openConnection();
+        con.setRequestMethod("POST");
+        con.setConnectTimeout(10000);
+        con.setReadTimeout(30000);
+        con.setDoOutput(true);
+        con.setRequestProperty("Content-Type", "application/json");
+        try (java.io.OutputStream out = con.getOutputStream()) {
+            out.write(req.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        }
+        java.io.InputStream in = con.getResponseCode() >= 400 ? con.getErrorStream() : con.getInputStream();
+        java.io.ByteArrayOutputStream buf = new java.io.ByteArrayOutputStream();
+        if (in != null) in.transferTo(buf);
+        con.disconnect();
+        JSONObject resp;
+        try {
+            resp = new JSONObject(buf.toString("UTF-8"));
+        } catch (Exception e) {
+            throw new Exception("No se pudo verificar el pago con tarjeta (servicio de pagos no disponible)");
+        }
+        if (!"exito".equals(resp.optString("estado"))) throw new Exception(resp.optString("error", "No se pudo verificar el pago con tarjeta"));
+        return resp;
     }
 
     public static void venta2(JSONObject obj) {
