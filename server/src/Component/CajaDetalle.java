@@ -388,6 +388,9 @@ public class CajaDetalle {
                 det.put("tipo_cambio", tipo_cambio);
                 det.put("descripcion", value.optString("referencia", "").isEmpty() ? "Amortización de cuota de compra" : value.getString("referencia"));
                 if (pagoTarjeta != null) det.put("data", new JSONObject().put("pago_tarjeta", pagoTarjeta.getString("key")));
+                // Cuotas de una venta conocida (tienda web): el movimiento queda ligado a la venta, así anular la venta
+                // también lo revierte y devuelve el cobro con tarjeta.
+                if (!data.optString("key_compra_venta", "").isEmpty()) det.put("key_compra_venta", data.getString("key_compra_venta"));
                 // det.put("descripcion", obj.optString("descripcion"));
                 // det.put("descripcion", data.optString("descripcion"));
 
