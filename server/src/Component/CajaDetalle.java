@@ -650,6 +650,10 @@ public class CajaDetalle {
             boolean pasarela = false;
             keyCompraVentaEnCurso = key_compra_venta;
             JSONArray cajaDetalle = new JSONArray();
+            // Carga histórica (sync con Calistenia): los pagos, la venta y el comprobante van con la fecha contable del
+            // mes que se carga (compra_venta y contabilidad la leen del mismo data). Sin ella, la fecha de hoy.
+            String fechaContable = data.optString("fecha_contable", "");
+            String fechaPago = fechaContable.matches("\\d{4}-\\d{2}-\\d{2}[ T]\\d{2}:\\d{2}:\\d{2}.*") ? fechaContable.replace(' ', 'T') : null;
             for (int i = 0; i < JSONObject.getNames(data.getJSONObject("tipos_pago")).length; i++) {
                 String key = JSONObject.getNames(data.getJSONObject("tipos_pago"))[i];
                 JSONObject value = data.getJSONObject("tipos_pago").getJSONObject(key);
@@ -691,8 +695,8 @@ public class CajaDetalle {
                 // det.put("descripcion", data.optString("descripcion"));
                 det.put("descripcion", value.optString("referencia"));
                 det.put("tipo", "venta");
-                det.put("fecha", SUtil.now());
-                det.put("fecha_on", SUtil.now());
+                det.put("fecha", fechaPago != null ? fechaPago : SUtil.now());
+                det.put("fecha_on", fechaPago != null ? fechaPago : SUtil.now());
                 det.put("estado", 1);
                 det.put("key_usuario", data.getString("key_usuario"));
                 det.put("key_compra_venta", key_compra_venta);
