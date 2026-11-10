@@ -850,6 +850,9 @@ public class CajaDetalle {
         }
         JSONObject d = c.getJSONObject("data");
         if (d.optString("key_punto_venta").equals(caja.optString("key_punto_venta"))) return;
+        // serp también devuelve los puntos de venta del sync con el sistema antiguo de Calistenia.
+        JSONArray pvs = d.optJSONArray("puntos_venta");
+        if (pvs != null) for (int i = 0; i < pvs.length(); i++) if (pvs.optString(i).equals(caja.optString("key_punto_venta"))) return;
         JSONArray modelos = d.optJSONArray("modelos");
         if (modelos == null || modelos.length() == 0) return;
         java.util.Set<String> bloqueados = new java.util.HashSet<>();
